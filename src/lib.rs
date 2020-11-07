@@ -4,7 +4,7 @@ extern crate log;
 extern crate num_derive;
 
 use byteorder;
-use libusb;
+use rusb as libusb;
 use num_traits::{FromPrimitive, ToPrimitive};
 use thiserror::Error;
 
@@ -801,17 +801,17 @@ impl PtpContainerInfo {
     }
 }
 
-pub struct PtpCamera<'a> {
+pub struct PtpCamera<C: libusb::UsbContext> {
     iface: u8,
     ep_in: u8,
     ep_out: u8,
-    _ep_int: u8,
+    ep_int: u8,
     current_tid: u32,
-    handle: libusb::DeviceHandle<'a>,
+    handle: libusb::DeviceHandle<C>,
 }
 
-impl<'a> PtpCamera<'a> {
-    pub fn new(device: &libusb::Device<'a>) -> Result<PtpCamera<'a>, Error> {
+impl<C: libusb::UsbContext> PtpCamera<C> {
+    pub fn new(device: &libusb::Device<C>) -> Result<PtpCamera<C>, Error> {
         let config_desc = device.active_config_descriptor()?;
 
         let interface_desc = config_desc
@@ -842,7 +842,7 @@ impl<'a> PtpCamera<'a> {
             iface: interface_desc.interface_number(),
             ep_in: find_endpoint(libusb::Direction::In, libusb::TransferType::Bulk)?,
             ep_out: find_endpoint(libusb::Direction::Out, libusb::TransferType::Bulk)?,
-            _ep_int: find_endpoint(libusb::Direction::In, libusb::TransferType::Interrupt)?,
+            ep_int: find_endpoint(libusb::Direction::In, libusb::TransferType::Interrupt)?,
             current_tid: 0,
             handle: handle,
         })
