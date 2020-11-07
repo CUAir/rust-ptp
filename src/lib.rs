@@ -350,7 +350,6 @@ impl<T: AsRef<[u8]>> PtpRead for Cursor<T> {
     }
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug, PartialEq)]
 pub enum PtpDataType {
     UNDEF,
@@ -581,23 +580,22 @@ impl<'a> From<String> for PtpDataType {
     }
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug)]
 pub struct PtpDeviceInfo {
-    pub Version: u16,
-    pub VendorExID: u32,
-    pub VendorExVersion: u16,
-    pub VendorExtensionDesc: String,
-    pub FunctionalMode: u16,
-    pub OperationsSupported: Vec<u16>,
-    pub EventsSupported: Vec<u16>,
-    pub DevicePropertiesSupported: Vec<u16>,
-    pub CaptureFormats: Vec<u16>,
-    pub ImageFormats: Vec<u16>,
-    pub Manufacturer: String,
-    pub Model: String,
-    pub DeviceVersion: String,
-    pub SerialNumber: String,
+    pub version: u16,
+    pub vendor_ex_id: u32,
+    pub vendor_ex_version: u16,
+    pub vendor_extension_desc: String,
+    pub functional_mode: u16,
+    pub operations_supported: Vec<u16>,
+    pub events_supported: Vec<u16>,
+    pub device_properties_supported: Vec<u16>,
+    pub capture_formats: Vec<u16>,
+    pub image_formats: Vec<u16>,
+    pub manufacturer: String,
+    pub model: String,
+    pub device_version: String,
+    pub serial_number: String,
 }
 
 impl PtpDeviceInfo {
@@ -605,45 +603,45 @@ impl PtpDeviceInfo {
         let mut cur = Cursor::new(buf);
 
         Ok(PtpDeviceInfo {
-            Version: cur.read_ptp_u16()?,
-            VendorExID: cur.read_ptp_u32()?,
-            VendorExVersion: cur.read_ptp_u16()?,
-            VendorExtensionDesc: cur.read_ptp_str()?,
-            FunctionalMode: cur.read_ptp_u16()?,
-            OperationsSupported: cur.read_ptp_u16_vec()?,
-            EventsSupported: cur.read_ptp_u16_vec()?,
-            DevicePropertiesSupported: cur.read_ptp_u16_vec()?,
-            CaptureFormats: cur.read_ptp_u16_vec()?,
-            ImageFormats: cur.read_ptp_u16_vec()?,
-            Manufacturer: cur.read_ptp_str()?,
-            Model: cur.read_ptp_str()?,
-            DeviceVersion: cur.read_ptp_str()?,
-            SerialNumber: cur.read_ptp_str()?,
+            version: cur.read_ptp_u16()?,
+            vendor_ex_id: cur.read_ptp_u32()?,
+            vendor_ex_version: cur.read_ptp_u16()?,
+            vendor_extension_desc: cur.read_ptp_str()?,
+            functional_mode: cur.read_ptp_u16()?,
+            operations_supported: cur.read_ptp_u16_vec()?,
+            events_supported: cur.read_ptp_u16_vec()?,
+            device_properties_supported: cur.read_ptp_u16_vec()?,
+            capture_formats: cur.read_ptp_u16_vec()?,
+            image_formats: cur.read_ptp_u16_vec()?,
+            manufacturer: cur.read_ptp_str()?,
+            model: cur.read_ptp_str()?,
+            device_version: cur.read_ptp_str()?,
+            serial_number: cur.read_ptp_str()?,
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct PtpObjectInfo {
-    pub StorageID: u32,
-    pub ObjectFormat: u16,
-    pub ProtectionStatus: u16,
-    pub ObjectCompressedSize: u32,
-    pub ThumbFormat: u16,
-    pub ThumbCompressedSize: u32,
-    pub ThumbPixWidth: u32,
-    pub ThumbPixHeight: u32,
-    pub ImagePixWidth: u32,
-    pub ImagePixHeight: u32,
-    pub ImageBitDepth: u32,
-    pub ParentObject: u32,
-    pub AssociationType: u16,
-    pub AssociationDesc: u32,
-    pub SequenceNumber: u32,
-    pub Filename: String,
-    pub CaptureDate: String,
-    pub ModificationDate: String,
-    pub Keywords: String,
+    pub storage_id: u32,
+    pub object_format: u16,
+    pub protection_status: u16,
+    pub object_compressed_size: u32,
+    pub thumb_format: u16,
+    pub thumb_compressed_size: u32,
+    pub thumb_pix_width: u32,
+    pub thumb_pix_height: u32,
+    pub image_pix_width: u32,
+    pub image_pix_height: u32,
+    pub image_bit_depth: u32,
+    pub parent_object: u32,
+    pub association_type: u16,
+    pub association_desc: u32,
+    pub sequence_number: u32,
+    pub filename: String,
+    pub capture_date: String,
+    pub modification_date: String,
+    pub keywords: String,
 }
 
 impl PtpObjectInfo {
@@ -651,64 +649,62 @@ impl PtpObjectInfo {
         let mut cur = Cursor::new(buf);
 
         Ok(PtpObjectInfo {
-            StorageID: cur.read_ptp_u32()?,
-            ObjectFormat: cur.read_ptp_u16()?,
-            ProtectionStatus: cur.read_ptp_u16()?,
-            ObjectCompressedSize: cur.read_ptp_u32()?,
-            ThumbFormat: cur.read_ptp_u16()?,
-            ThumbCompressedSize: cur.read_ptp_u32()?,
-            ThumbPixWidth: cur.read_ptp_u32()?,
-            ThumbPixHeight: cur.read_ptp_u32()?,
-            ImagePixWidth: cur.read_ptp_u32()?,
-            ImagePixHeight: cur.read_ptp_u32()?,
-            ImageBitDepth: cur.read_ptp_u32()?,
-            ParentObject: cur.read_ptp_u32()?,
-            AssociationType: cur.read_ptp_u16()?,
-            AssociationDesc: cur.read_ptp_u32()?,
-            SequenceNumber: cur.read_ptp_u32()?,
-            Filename: cur.read_ptp_str()?,
-            CaptureDate: cur.read_ptp_str()?,
-            ModificationDate: cur.read_ptp_str()?,
-            Keywords: cur.read_ptp_str()?,
+            storage_id: cur.read_ptp_u32()?,
+            object_format: cur.read_ptp_u16()?,
+            protection_status: cur.read_ptp_u16()?,
+            object_compressed_size: cur.read_ptp_u32()?,
+            thumb_format: cur.read_ptp_u16()?,
+            thumb_compressed_size: cur.read_ptp_u32()?,
+            thumb_pix_width: cur.read_ptp_u32()?,
+            thumb_pix_height: cur.read_ptp_u32()?,
+            image_pix_width: cur.read_ptp_u32()?,
+            image_pix_height: cur.read_ptp_u32()?,
+            image_bit_depth: cur.read_ptp_u32()?,
+            parent_object: cur.read_ptp_u32()?,
+            association_type: cur.read_ptp_u16()?,
+            association_desc: cur.read_ptp_u32()?,
+            sequence_number: cur.read_ptp_u32()?,
+            filename: cur.read_ptp_str()?,
+            capture_date: cur.read_ptp_str()?,
+            modification_date: cur.read_ptp_str()?,
+            keywords: cur.read_ptp_str()?,
         })
     }
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug)]
 pub struct PtpStorageInfo {
-    pub StorageType: u16,
-    pub FilesystemType: u16,
-    pub AccessCapability: u16,
-    pub MaxCapacity: u64,
-    pub FreeSpaceInBytes: u64,
-    pub FreeSpaceInImages: u32,
-    pub StorageDescription: String,
-    pub VolumeLabel: String,
+    pub storage_type: u16,
+    pub filesystem_type: u16,
+    pub access_capability: u16,
+    pub max_capacity: u64,
+    pub free_space_in_bytes: u64,
+    pub free_space_in_images: u32,
+    pub storage_description: String,
+    pub volume_label: String,
 }
 
 impl PtpStorageInfo {
     pub fn decode<T: PtpRead>(cur: &mut T) -> Result<PtpStorageInfo, Error> {
         Ok(PtpStorageInfo {
-            StorageType: cur.read_ptp_u16()?,
-            FilesystemType: cur.read_ptp_u16()?,
-            AccessCapability: cur.read_ptp_u16()?,
-            MaxCapacity: cur.read_ptp_u64()?,
-            FreeSpaceInBytes: cur.read_ptp_u64()?,
-            FreeSpaceInImages: cur.read_ptp_u32()?,
-            StorageDescription: cur.read_ptp_str()?,
-            VolumeLabel: cur.read_ptp_str()?,
+            storage_type: cur.read_ptp_u16()?,
+            filesystem_type: cur.read_ptp_u16()?,
+            access_capability: cur.read_ptp_u16()?,
+            max_capacity: cur.read_ptp_u64()?,
+            free_space_in_bytes: cur.read_ptp_u64()?,
+            free_space_in_images: cur.read_ptp_u32()?,
+            storage_description: cur.read_ptp_str()?,
+            volume_label: cur.read_ptp_str()?,
         })
     }
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum PtpFormData {
     None,
     Range {
-        minValue: PtpDataType,
-        maxValue: PtpDataType,
+        min_value: PtpDataType,
+        max_value: PtpDataType,
         step: PtpDataType,
     },
     Enumeration {
@@ -716,37 +712,36 @@ pub enum PtpFormData {
     },
 }
 
-#[allow(non_snake_case)]
 #[derive(Debug)]
 pub struct PtpPropInfo {
-    pub PropertyCode: u16,
-    pub DataType: u16,
-    pub GetSet: u8,
-    pub IsEnable: u8,
-    pub FactoryDefault: PtpDataType,
-    pub Current: PtpDataType,
-    pub Form: PtpFormData,
+    pub property_code: u16,
+    pub data_type: u16,
+    pub get_set: u8,
+    pub is_enable: u8,
+    pub factory_default: PtpDataType,
+    pub current: PtpDataType,
+    pub form: PtpFormData,
 }
 
 impl PtpPropInfo {
     pub fn decode<T: PtpRead>(cur: &mut T) -> Result<PtpPropInfo, Error> {
         let data_type;
         Ok(PtpPropInfo {
-            PropertyCode: cur.read_u16::<LittleEndian>()?,
-            DataType: {
+            property_code: cur.read_u16::<LittleEndian>()?,
+            data_type: {
                 data_type = cur.read_u16::<LittleEndian>()?;
                 data_type
             },
-            GetSet: cur.read_u8()?,
-            IsEnable: cur.read_u8()?,
-            FactoryDefault: PtpDataType::read_type(data_type, cur)?,
-            Current: PtpDataType::read_type(data_type, cur)?,
-            Form: {
+            get_set: cur.read_u8()?,
+            is_enable: cur.read_u8()?,
+            factory_default: PtpDataType::read_type(data_type, cur)?,
+            current: PtpDataType::read_type(data_type, cur)?,
+            form: {
                 match cur.read_u8()? {
                     // 0x00 => PtpFormData::None,
                     0x01 => PtpFormData::Range {
-                        minValue: PtpDataType::read_type(data_type, cur)?,
-                        maxValue: PtpDataType::read_type(data_type, cur)?,
+                        min_value: PtpDataType::read_type(data_type, cur)?,
+                        max_value: PtpDataType::read_type(data_type, cur)?,
                         step: PtpDataType::read_type(data_type, cur)?,
                     },
                     0x02 => PtpFormData::Enumeration {
@@ -1192,7 +1187,7 @@ impl PtpObjectTree {
             for (prefix, item) in input.split_off(0) {
                 let path = prefix.clone()
                     + (if prefix.is_empty() { "" } else { "/" })
-                    + &item.info.Filename;
+                    + &item.info.filename;
 
                 output.push((path.clone(), item.clone()));
 
