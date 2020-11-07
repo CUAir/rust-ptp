@@ -6,7 +6,7 @@ extern crate num_derive;
 use byteorder;
 use libusb;
 use num_traits::{FromPrimitive, ToPrimitive};
-use time;
+use thiserror::Error;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::fmt;
@@ -15,7 +15,7 @@ use std::io::prelude::*;
 use std::io::Cursor;
 use std::slice;
 use std::time::Duration;
-use std::{cmp::min, convert::TryInto, fmt::LowerHex};
+use std::{cmp::min, fmt::LowerHex};
 
 #[derive(Debug, PartialEq, FromPrimitive)]
 #[repr(u16)]
@@ -108,9 +108,19 @@ impl LowerHex for StandardResponseCode {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum CommandCode {
     Standard(StandardCommandCode),
     Other(u16),
+}
+
+impl LowerHex for CommandCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommandCode::Standard(code) => fmt::LowerHex::fmt(code, f),
+            CommandCode::Other(code) => fmt::LowerHex::fmt(code, f),
+        }
+    }
 }
 
 impl FromPrimitive for CommandCode {
@@ -126,6 +136,22 @@ impl FromPrimitive for CommandCode {
             || CommandCode::Other(n as u16),
             |code| CommandCode::Standard(code),
         ))
+    }
+}
+
+impl ToPrimitive for CommandCode {
+    fn to_i64(&self) -> Option<i64> {
+        match self {
+            CommandCode::Standard(code) => code.to_i64(),
+            CommandCode::Other(code) => Some(*code as i64),
+        }
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            CommandCode::Standard(code) => code.to_u64(),
+            CommandCode::Other(code) => Some(*code as u64),
+        }
     }
 }
 
@@ -169,68 +195,31 @@ pub enum StandardCommandCode {
     InitiateOpenCapture = 0x101C,
 }
 
+impl LowerHex for StandardCommandCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val = self.to_u16().unwrap();
+        fmt::LowerHex::fmt(&val, f)
+    }
+}
+
 /// An error in a PTP command
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
     /// PTP Responder returned a status code other than Ok, either a constant in StandardResponseCode or a vendor-defined code
-    Response(u16),
+    #[error("the ptp device returned an error code: {0:?}")]
+    Response(ResponseCode),
 
     /// Data received was malformed
+    #[error("the data received was malformed: {0}")]
     Malformed(String),
 
     /// Another libusb error
-    Usb(libusb::Error),
+    #[error("a usb error occurred")]
+    Usb(#[from] libusb::Error),
 
     /// Another IO error
-    Io(io::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::Response(r) => {
-                let code = ResponseCode::from_u16(r).unwrap();
-                write!(f, "{0:?} (0x{0:04x})", code)
-            }
-            Error::Usb(ref e) => write!(f, "USB error: {}", e),
-            Error::Io(ref e) => write!(f, "IO error: {}", e),
-            Error::Malformed(ref e) => write!(f, "{}", e),
-        }
-    }
-}
-
-impl ::std::error::Error for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::Response(r) => StandardResponseCode::name(r).unwrap_or("<vendor-defined code>"),
-            Error::Malformed(ref m) => m,
-            Error::Usb(ref e) => e.description(),
-            Error::Io(ref e) => e.description(),
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn (::std::error::Error)> {
-        match *self {
-            Error::Usb(ref e) => Some(e),
-            Error::Io(ref e) => Some(e),
-            _ => None,
-        }
-    }
-}
-
-impl From<libusb::Error> for Error {
-    fn from(e: libusb::Error) -> Error {
-        Error::Usb(e)
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(e: io::Error) -> Error {
-        match e.kind() {
-            io::ErrorKind::UnexpectedEof => Error::Malformed(format!("Unexpected end of message")),
-            _ => Error::Io(e),
-        }
-    }
+    #[error("an I/O error occurred")]
+    Io(#[from] io::Error),
 }
 
 pub trait PtpRead: ReadBytesExt {
@@ -634,7 +623,6 @@ impl PtpDeviceInfo {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PtpObjectInfo {
     pub StorageID: u32,
@@ -920,8 +908,9 @@ impl<'a> PtpCamera<'a> {
                     data_phase_payload = payload;
                 }
                 PtpContainerType::Response => {
-                    if container.code != StandardResponseCode::Ok {
-                        return Err(Error::Response(container.code));
+                    let code = ResponseCode::from_u16(container.code).unwrap();
+                    if code != ResponseCode::Standard(StandardResponseCode::Ok) {
+                        return Err(Error::Response(code));
                     }
                     return Ok(data_phase_payload);
                 }
@@ -938,13 +927,7 @@ impl<'a> PtpCamera<'a> {
         payload: &[u8],
         timeout: Duration,
     ) -> Result<(), Error> {
-        trace!(
-            "Write {:?} - 0x{:04x} ({}), tid:{}",
-            kind,
-            code,
-            StandardCommandCode::name(code).unwrap_or("unknown"),
-            tid
-        );
+        trace!("Write {:?} - 0x{1:04x} ({1:?}), tid:{2}", kind, code, tid);
 
         const CHUNK_SIZE: usize = 1024 * 1024; // 1MB, must be a multiple of the endpoint packet size
 
@@ -954,7 +937,7 @@ impl<'a> PtpCamera<'a> {
         buf.write_u32::<LittleEndian>((payload.len() + PTP_CONTAINER_INFO_SIZE) as u32)
             .ok();
         buf.write_u16::<LittleEndian>(kind as u16).ok();
-        buf.write_u16::<LittleEndian>(code).ok();
+        buf.write_u16::<LittleEndian>(code.to_u16().unwrap()).ok();
         buf.write_u32::<LittleEndian>(tid).ok();
         buf.extend_from_slice(&payload[..first_chunk_payload_bytes]);
         self.handle.write_bulk(self.ep_out, &buf, timeout)?;
@@ -1020,12 +1003,22 @@ impl<'a> PtpCamera<'a> {
         handle: u32,
         timeout: Option<Duration>,
     ) -> Result<PtpObjectInfo, Error> {
-        let data = self.command(StandardCommandCode::GetObjectInfo, &[handle], None, timeout)?;
+        let data = self.command(
+            StandardCommandCode::GetObjectInfo.into(),
+            &[handle],
+            None,
+            timeout,
+        )?;
         Ok(PtpObjectInfo::decode(&data)?)
     }
 
     pub fn get_object(&mut self, handle: u32, timeout: Option<Duration>) -> Result<Vec<u8>, Error> {
-        self.command(StandardCommandCode::GetObject, &[handle], None, timeout)
+        self.command(
+            StandardCommandCode::GetObject.into(),
+            &[handle],
+            None,
+            timeout,
+        )
     }
 
     pub fn get_objecthandles(
@@ -1036,7 +1029,7 @@ impl<'a> PtpCamera<'a> {
         timeout: Option<Duration>,
     ) -> Result<Vec<u32>, Error> {
         let data = self.command(
-            StandardCommandCode::GetObjectHandles,
+            StandardCommandCode::GetObjectHandles.into(),
             &[storage_id, filter.unwrap_or(0x0), handle_id],
             None,
             timeout,
@@ -1076,7 +1069,7 @@ impl<'a> PtpCamera<'a> {
         timeout: Option<Duration>,
     ) -> Result<u32, Error> {
         let data = self.command(
-            StandardCommandCode::GetNumObjects,
+            StandardCommandCode::GetNumObjects.into(),
             &[storage_id, filter.unwrap_or(0x0), handle_id],
             None,
             timeout,
@@ -1096,7 +1089,7 @@ impl<'a> PtpCamera<'a> {
         timeout: Option<Duration>,
     ) -> Result<PtpStorageInfo, Error> {
         let data = self.command(
-            StandardCommandCode::GetStorageInfo,
+            StandardCommandCode::GetStorageInfo.into(),
             &[storage_id],
             None,
             timeout,
@@ -1111,7 +1104,12 @@ impl<'a> PtpCamera<'a> {
     }
 
     pub fn get_storageids(&mut self, timeout: Option<Duration>) -> Result<Vec<u32>, Error> {
-        let data = self.command(StandardCommandCode::GetStorageIDs, &[], None, timeout)?;
+        let data = self.command(
+            StandardCommandCode::GetStorageIDs.into(),
+            &[],
+            None,
+            timeout,
+        )?;
 
         // Parse ObjectHandleArrray
         let mut cur = Cursor::new(data);
@@ -1141,7 +1139,7 @@ impl<'a> PtpCamera<'a> {
 
     pub fn get_device_info(&mut self, timeout: Option<Duration>) -> Result<PtpDeviceInfo, Error> {
         let data = self.command(
-            StandardCommandCode::GetDeviceInfo,
+            StandardCommandCode::GetDeviceInfo.into(),
             &[0, 0, 0],
             None,
             timeout,
@@ -1156,7 +1154,7 @@ impl<'a> PtpCamera<'a> {
         let session_id = 3;
 
         self.command(
-            StandardCommandCode::OpenSession,
+            StandardCommandCode::OpenSession.into(),
             &vec![session_id, 0, 0],
             None,
             timeout,
@@ -1166,7 +1164,7 @@ impl<'a> PtpCamera<'a> {
     }
 
     pub fn close_session(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
-        self.command(StandardCommandCode::CloseSession, &[], None, timeout)?;
+        self.command(StandardCommandCode::CloseSession.into(), &[], None, timeout)?;
 
         Ok(())
     }
