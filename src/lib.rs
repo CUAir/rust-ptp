@@ -1,21 +1,23 @@
-#![allow(non_snake_case)]
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate num_derive;
 
-extern crate byteorder;
-extern crate libusb;
-extern crate time;
+use byteorder;
+use libusb;
+use num_traits::{FromPrimitive, ToPrimitive};
+use time;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::cmp::min;
 use std::fmt;
 use std::io;
 use std::io::prelude::*;
 use std::io::Cursor;
 use std::slice;
 use std::time::Duration;
+use std::{cmp::min, convert::TryInto, fmt::LowerHex};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, FromPrimitive)]
 #[repr(u16)]
 pub enum PtpContainerType {
     Command = 1,
@@ -24,169 +26,147 @@ pub enum PtpContainerType {
     Event = 4,
 }
 
-impl PtpContainerType {
-    fn from_u16(v: u16) -> Option<PtpContainerType> {
-        use self::PtpContainerType::*;
-        match v {
-            1 => Some(Command),
-            2 => Some(Data),
-            3 => Some(Response),
-            4 => Some(Event),
-            _ => None,
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub enum ResponseCode {
+    Standard(StandardResponseCode),
+    Other(u16),
+}
+
+impl FromPrimitive for ResponseCode {
+    fn from_i64(n: i64) -> Option<Self> {
+        Some(StandardResponseCode::from_i64(n).map_or_else(
+            || ResponseCode::Other(n as u16),
+            |code| ResponseCode::Standard(code),
+        ))
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        Some(StandardResponseCode::from_u64(n).map_or_else(
+            || ResponseCode::Other(n as u16),
+            |code| ResponseCode::Standard(code),
+        ))
+    }
+}
+
+impl LowerHex for ResponseCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ResponseCode::Standard(code) => fmt::LowerHex::fmt(code, f),
+            ResponseCode::Other(code) => fmt::LowerHex::fmt(code, f),
         }
     }
 }
 
-pub type ResponseCode = u16;
-
-#[allow(non_upper_case_globals)]
-pub mod StandardResponseCode {
-    use super::ResponseCode;
-
-    pub const Undefined: ResponseCode = 0x2000;
-    pub const Ok: ResponseCode = 0x2001;
-    pub const GeneralError: ResponseCode = 0x2002;
-    pub const SessionNotOpen: ResponseCode = 0x2003;
-    pub const InvalidTransactionId: ResponseCode = 0x2004;
-    pub const OperationNotSupported: ResponseCode = 0x2005;
-    pub const ParameterNotSupported: ResponseCode = 0x2006;
-    pub const IncompleteTransfer: ResponseCode = 0x2007;
-    pub const InvalidStorageId: ResponseCode = 0x2008;
-    pub const InvalidObjectHandle: ResponseCode = 0x2009;
-    pub const DevicePropNotSupported: ResponseCode = 0x200A;
-    pub const InvalidObjectFormatCode: ResponseCode = 0x200B;
-    pub const StoreFull: ResponseCode = 0x200C;
-    pub const ObjectWriteProtected: ResponseCode = 0x200D;
-    pub const StoreReadOnly: ResponseCode = 0x200E;
-    pub const AccessDenied: ResponseCode = 0x200F;
-    pub const NoThumbnailPresent: ResponseCode = 0x2010;
-    pub const SelfTestFailed: ResponseCode = 0x2011;
-    pub const PartialDeletion: ResponseCode = 0x2012;
-    pub const StoreNotAvailable: ResponseCode = 0x2013;
-    pub const SpecificationByFormatUnsupported: ResponseCode = 0x2014;
-    pub const NoValidObjectInfo: ResponseCode = 0x2015;
-    pub const InvalidCodeFormat: ResponseCode = 0x2016;
-    pub const UnknownVendorCode: ResponseCode = 0x2017;
-    pub const CaptureAlreadyTerminated: ResponseCode = 0x2018;
-    pub const DeviceBusy: ResponseCode = 0x2019;
-    pub const InvalidParentObject: ResponseCode = 0x201A;
-    pub const InvalidDevicePropFormat: ResponseCode = 0x201B;
-    pub const InvalidDevicePropValue: ResponseCode = 0x201C;
-    pub const InvalidParameter: ResponseCode = 0x201D;
-    pub const SessionAlreadyOpen: ResponseCode = 0x201E;
-    pub const TransactionCancelled: ResponseCode = 0x201F;
-    pub const SpecificationOfDestinationUnsupported: ResponseCode = 0x2020;
-
-    pub fn name(v: ResponseCode) -> Option<&'static str> {
-        match v {
-            Undefined => Some("Undefined"),
-            Ok => Some("Ok"),
-            GeneralError => Some("GeneralError"),
-            SessionNotOpen => Some("SessionNotOpen"),
-            InvalidTransactionId => Some("InvalidTransactionId"),
-            OperationNotSupported => Some("OperationNotSupported"),
-            ParameterNotSupported => Some("ParameterNotSupported"),
-            IncompleteTransfer => Some("IncompleteTransfer"),
-            InvalidStorageId => Some("InvalidStorageId"),
-            InvalidObjectHandle => Some("InvalidObjectHandle"),
-            DevicePropNotSupported => Some("DevicePropNotSupported"),
-            InvalidObjectFormatCode => Some("InvalidObjectFormatCode"),
-            StoreFull => Some("StoreFull"),
-            ObjectWriteProtected => Some("ObjectWriteProtected"),
-            StoreReadOnly => Some("StoreReadOnly"),
-            AccessDenied => Some("AccessDenied"),
-            NoThumbnailPresent => Some("NoThumbnailPresent"),
-            SelfTestFailed => Some("SelfTestFailed"),
-            PartialDeletion => Some("PartialDeletion"),
-            StoreNotAvailable => Some("StoreNotAvailable"),
-            SpecificationByFormatUnsupported => Some("SpecificationByFormatUnsupported"),
-            NoValidObjectInfo => Some("NoValidObjectInfo"),
-            InvalidCodeFormat => Some("InvalidCodeFormat"),
-            UnknownVendorCode => Some("UnknownVendorCode"),
-            CaptureAlreadyTerminated => Some("CaptureAlreadyTerminated"),
-            DeviceBusy => Some("DeviceBusy"),
-            InvalidParentObject => Some("InvalidParentObject"),
-            InvalidDevicePropFormat => Some("InvalidDevicePropFormat"),
-            InvalidDevicePropValue => Some("InvalidDevicePropValue"),
-            InvalidParameter => Some("InvalidParameter"),
-            SessionAlreadyOpen => Some("SessionAlreadyOpen"),
-            TransactionCancelled => Some("TransactionCancelled"),
-            SpecificationOfDestinationUnsupported => Some("SpecificationOfDestinationUnsupported"),
-            _ => None,
-        }
+impl From<StandardResponseCode> for ResponseCode {
+    fn from(code: StandardResponseCode) -> Self {
+        ResponseCode::Standard(code)
     }
 }
 
-pub type CommandCode = u16;
+#[repr(u16)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+pub enum StandardResponseCode {
+    Undefined = 0x2000,
+    Ok = 0x2001,
+    GeneralError = 0x2002,
+    SessionNotOpen = 0x2003,
+    InvalidTransactionId = 0x2004,
+    OperationNotSupported = 0x2005,
+    ParameterNotSupported = 0x2006,
+    IncompleteTransfer = 0x2007,
+    InvalidStorageId = 0x2008,
+    InvalidObjectHandle = 0x2009,
+    DevicePropNotSupported = 0x200A,
+    InvalidObjectFormatCode = 0x200B,
+    StoreFull = 0x200C,
+    ObjectWriteProtected = 0x200D,
+    StoreReadOnly = 0x200E,
+    AccessDenied = 0x200F,
+    NoThumbnailPresent = 0x2010,
+    SelfTestFailed = 0x2011,
+    PartialDeletion = 0x2012,
+    StoreNotAvailable = 0x2013,
+    SpecificationByFormatUnsupported = 0x2014,
+    NoValidObjectInfo = 0x2015,
+    InvalidCodeFormat = 0x2016,
+    UnknownVendorCode = 0x2017,
+    CaptureAlreadyTerminated = 0x2018,
+    DeviceBusy = 0x2019,
+    InvalidParentObject = 0x201A,
+    InvalidDevicePropFormat = 0x201B,
+    InvalidDevicePropValue = 0x201C,
+    InvalidParameter = 0x201D,
+    SessionAlreadyOpen = 0x201E,
+    TransactionCancelled = 0x201F,
+    SpecificationOfDestinationUnsupported = 0x2020,
+}
 
-#[allow(non_upper_case_globals)]
-pub mod StandardCommandCode {
-    use super::CommandCode;
-
-    pub const Undefined: CommandCode = 0x1000;
-    pub const GetDeviceInfo: CommandCode = 0x1001;
-    pub const OpenSession: CommandCode = 0x1002;
-    pub const CloseSession: CommandCode = 0x1003;
-    pub const GetStorageIDs: CommandCode = 0x1004;
-    pub const GetStorageInfo: CommandCode = 0x1005;
-    pub const GetNumObjects: CommandCode = 0x1006;
-    pub const GetObjectHandles: CommandCode = 0x1007;
-    pub const GetObjectInfo: CommandCode = 0x1008;
-    pub const GetObject: CommandCode = 0x1009;
-    pub const GetThumb: CommandCode = 0x100A;
-    pub const DeleteObject: CommandCode = 0x100B;
-    pub const SendObjectInfo: CommandCode = 0x100C;
-    pub const SendObject: CommandCode = 0x100D;
-    pub const InitiateCapture: CommandCode = 0x100E;
-    pub const FormatStore: CommandCode = 0x100F;
-    pub const ResetDevice: CommandCode = 0x1010;
-    pub const SelfTest: CommandCode = 0x1011;
-    pub const SetObjectProtection: CommandCode = 0x1012;
-    pub const PowerDown: CommandCode = 0x1013;
-    pub const GetDevicePropDesc: CommandCode = 0x1014;
-    pub const GetDevicePropValue: CommandCode = 0x1015;
-    pub const SetDevicePropValue: CommandCode = 0x1016;
-    pub const ResetDevicePropValue: CommandCode = 0x1017;
-    pub const TerminateOpenCapture: CommandCode = 0x1018;
-    pub const MoveObject: CommandCode = 0x1019;
-    pub const CopyObject: CommandCode = 0x101A;
-    pub const GetPartialObject: CommandCode = 0x101B;
-    pub const InitiateOpenCapture: CommandCode = 0x101C;
-
-    pub fn name(v: CommandCode) -> Option<&'static str> {
-        match v {
-            Undefined => Some("Undefined"),
-            GetDeviceInfo => Some("GetDeviceInfo"),
-            OpenSession => Some("OpenSession"),
-            CloseSession => Some("CloseSession"),
-            GetStorageIDs => Some("GetStorageIDs"),
-            GetStorageInfo => Some("GetStorageInfo"),
-            GetNumObjects => Some("GetNumObjects"),
-            GetObjectHandles => Some("GetObjectHandles"),
-            GetObjectInfo => Some("GetObjectInfo"),
-            GetObject => Some("GetObject"),
-            GetThumb => Some("GetThumb"),
-            DeleteObject => Some("DeleteObject"),
-            SendObjectInfo => Some("SendObjectInfo"),
-            SendObject => Some("SendObject"),
-            InitiateCapture => Some("InitiateCapture"),
-            FormatStore => Some("FormatStore"),
-            ResetDevice => Some("ResetDevice"),
-            SelfTest => Some("SelfTest"),
-            SetObjectProtection => Some("SetObjectProtection"),
-            PowerDown => Some("PowerDown"),
-            GetDevicePropDesc => Some("GetDevicePropDesc"),
-            GetDevicePropValue => Some("GetDevicePropValue"),
-            SetDevicePropValue => Some("SetDevicePropValue"),
-            ResetDevicePropValue => Some("ResetDevicePropValue"),
-            TerminateOpenCapture => Some("TerminateOpenCapture"),
-            MoveObject => Some("MoveObject"),
-            CopyObject => Some("CopyObject"),
-            GetPartialObject => Some("GetPartialObject"),
-            InitiateOpenCapture => Some("InitiateOpenCapture"),
-            _ => None,
-        }
+impl LowerHex for StandardResponseCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let val = self.to_u16().unwrap();
+        fmt::LowerHex::fmt(&val, f)
     }
+}
+
+pub enum CommandCode {
+    Standard(StandardCommandCode),
+    Other(u16),
+}
+
+impl FromPrimitive for CommandCode {
+    fn from_i64(n: i64) -> Option<Self> {
+        Some(StandardCommandCode::from_i64(n).map_or_else(
+            || CommandCode::Other(n as u16),
+            |code| CommandCode::Standard(code),
+        ))
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        Some(StandardCommandCode::from_u64(n).map_or_else(
+            || CommandCode::Other(n as u16),
+            |code| CommandCode::Standard(code),
+        ))
+    }
+}
+
+impl From<StandardCommandCode> for CommandCode {
+    fn from(code: StandardCommandCode) -> Self {
+        CommandCode::Standard(code)
+    }
+}
+
+#[repr(u16)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+pub enum StandardCommandCode {
+    Undefined = 0x1000,
+    GetDeviceInfo = 0x1001,
+    OpenSession = 0x1002,
+    CloseSession = 0x1003,
+    GetStorageIDs = 0x1004,
+    GetStorageInfo = 0x1005,
+    GetNumObjects = 0x1006,
+    GetObjectHandles = 0x1007,
+    GetObjectInfo = 0x1008,
+    GetObject = 0x1009,
+    GetThumb = 0x100A,
+    DeleteObject = 0x100B,
+    SendObjectInfo = 0x100C,
+    SendObject = 0x100D,
+    InitiateCapture = 0x100E,
+    FormatStore = 0x100F,
+    ResetDevice = 0x1010,
+    SelfTest = 0x1011,
+    SetObjectProtection = 0x1012,
+    PowerDown = 0x1013,
+    GetDevicePropDesc = 0x1014,
+    GetDevicePropValue = 0x1015,
+    SetDevicePropValue = 0x1016,
+    ResetDevicePropValue = 0x1017,
+    TerminateOpenCapture = 0x1018,
+    MoveObject = 0x1019,
+    CopyObject = 0x101A,
+    GetPartialObject = 0x101B,
+    InitiateOpenCapture = 0x101C,
 }
 
 /// An error in a PTP command
@@ -208,12 +188,10 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::Response(r) => write!(
-                f,
-                "{} (0x{:04x})",
-                StandardResponseCode::name(r).unwrap_or("Unknown"),
-                r
-            ),
+            Error::Response(r) => {
+                let code = ResponseCode::from_u16(r).unwrap();
+                write!(f, "{0:?} (0x{0:04x})", code)
+            }
             Error::Usb(ref e) => write!(f, "USB error: {}", e),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
             Error::Malformed(ref e) => write!(f, "{}", e),
