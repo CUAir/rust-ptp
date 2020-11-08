@@ -108,6 +108,63 @@ impl ToPrimitive for ObjectFormatCode {
     }
 }
 
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+pub enum StandardAssociationCode {
+    Undefined = 0x0000,
+    GenericFolder,
+    Album,
+    TimeSequence,
+    PanoramicHorizontal,
+    PanoramicVertical,
+    Panoramic2D,
+    AncillaryData,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AssociationCode {
+    Standard(StandardAssociationCode),
+    Reserved(u16),
+    Vendor(u16),
+}
+
+impl FromPrimitive for AssociationCode {
+    fn from_i64(_: i64) -> Option<Self> {
+        None
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        let n = n as u16;
+
+        const MSN_MASK: u16 = 0b1111_0000_0000_0000;
+        const RESERVED_MSN: u16 = 0b0011;
+        const VENDOR_MSN: u16 = 0b1011;
+
+        if let Some(ofc) = StandardAssociationCode::from_u16(n) {
+            return Some(AssociationCode::Standard(ofc));
+        }
+
+        if (n >> 15) & 1 == 1 {
+            return Some(ObjectFormatCode::Vendor(n));
+        }
+
+        return Some(ObjectFormatCode::Reserved(n));
+    }
+}
+
+impl ToPrimitive for AssociationCode {
+    fn to_i64(&self) -> Option<i64> {
+        None
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            AssociationCode::Standard(ofc) => ofc.to_u64(),
+            AssociationCode::Reserved(n) | AssociationCode::Vendor(n) => Some(*n as u64),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
 pub struct StorageId(pub(crate) u32);
 

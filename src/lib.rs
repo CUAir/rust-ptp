@@ -46,6 +46,12 @@ pub enum Error {
     #[error("the data received was malformed: {0}")]
     Malformed(String),
 
+    #[error("the data received was malformed: bad object format")]
+    BadObjectFormat,
+
+    #[error("the data received was malformed: bad association code")]
+    BadAssociationCode,
+
     /// Another libusb error
     #[error("a usb error occurred")]
     Usb(#[from] libusb::Error),
@@ -99,10 +105,10 @@ impl PtpDeviceInfo {
 #[derive(Debug, Clone)]
 pub struct PtpObjectInfo {
     pub storage_id: u32,
-    pub object_format: u16,
+    pub object_format: ObjectFormatCode,
     pub protection_status: u16,
     pub object_compressed_size: u32,
-    pub thumb_format: u16,
+    pub thumb_format: ObjectFormatCode,
     pub thumb_compressed_size: u32,
     pub thumb_pix_width: u32,
     pub thumb_pix_height: u32,
@@ -110,7 +116,7 @@ pub struct PtpObjectInfo {
     pub image_pix_height: u32,
     pub image_bit_depth: u32,
     pub parent_object: u32,
-    pub association_type: u16,
+    pub association_type: AssociationCode,
     pub association_desc: u32,
     pub sequence_number: u32,
     pub filename: String,
@@ -125,10 +131,12 @@ impl PtpObjectInfo {
 
         Ok(PtpObjectInfo {
             storage_id: cur.read_ptp_u32()?,
-            object_format: cur.read_ptp_u16()?,
+            object_format: ObjectFormatCode::from_u16(cur.read_ptp_u16()?)
+                .ok_or(Error::BadObjectFormat)?,
             protection_status: cur.read_ptp_u16()?,
             object_compressed_size: cur.read_ptp_u32()?,
-            thumb_format: cur.read_ptp_u16()?,
+            thumb_format: ObjectFormatCode::from_u16(cur.read_ptp_u16()?)
+                .ok_or(Error::BadObjectFormat)?,
             thumb_compressed_size: cur.read_ptp_u32()?,
             thumb_pix_width: cur.read_ptp_u32()?,
             thumb_pix_height: cur.read_ptp_u32()?,
@@ -136,7 +144,8 @@ impl PtpObjectInfo {
             image_pix_height: cur.read_ptp_u32()?,
             image_bit_depth: cur.read_ptp_u32()?,
             parent_object: cur.read_ptp_u32()?,
-            association_type: cur.read_ptp_u16()?,
+            association_type: AssociationCode::from_u16(cur.read_ptp_u16()?)
+            .ok_or(Error::BadAssociationCode)?,
             association_desc: cur.read_ptp_u32()?,
             sequence_number: cur.read_ptp_u32()?,
             filename: cur.read_ptp_str()?,
