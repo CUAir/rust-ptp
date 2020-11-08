@@ -17,7 +17,7 @@ use std::slice;
 use std::time::Duration;
 use std::{cmp::min, fmt::LowerHex};
 
-#[derive(Debug, PartialEq, FromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 #[repr(u16)]
 pub enum PtpContainerType {
     Command = 1,
@@ -697,7 +697,7 @@ impl PtpObjectInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PtpStorageInfo {
     pub storage_type: u16,
     pub filesystem_type: u16,
@@ -724,7 +724,7 @@ impl PtpStorageInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PtpFormData {
     None,
     Range {
@@ -737,7 +737,7 @@ pub enum PtpFormData {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PtpPropInfo {
     pub property_code: u16,
     pub data_type: u16,
@@ -786,7 +786,7 @@ impl PtpPropInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct PtpContainerInfo {
     /// payload len in bytes, usually relevant for data phases
     payload_len: usize,
