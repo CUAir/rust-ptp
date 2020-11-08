@@ -145,7 +145,7 @@ impl PtpObjectInfo {
             image_bit_depth: cur.read_ptp_u32()?,
             parent_object: cur.read_ptp_u32()?,
             association_type: AssociationCode::from_u16(cur.read_ptp_u16()?)
-            .ok_or(Error::BadAssociationCode)?,
+                .ok_or(Error::BadAssociationCode)?,
             association_desc: cur.read_ptp_u32()?,
             sequence_number: cur.read_ptp_u32()?,
             filename: cur.read_ptp_str()?,
@@ -160,7 +160,7 @@ impl PtpObjectInfo {
 pub struct PtpStorageInfo {
     pub storage_type: u16,
     pub filesystem_type: u16,
-    pub access_capability: u16,
+    pub access_capability: AccessType,
     pub max_capacity: u64,
     pub free_space_in_bytes: u64,
     pub free_space_in_images: u32,
@@ -168,12 +168,55 @@ pub struct PtpStorageInfo {
     pub volume_label: String,
 }
 
+#[repr(u16)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy, FromPrimitive, ToPrimitive)]
+pub enum StandardAccessType {
+    ReadWrite = 0x0000,
+    ReadOnlyNoDelete,
+    ReadOnly,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+pub enum AccessType {
+    Standard(StandardAccessType),
+    Reserved(u16),
+}
+
+impl FromPrimitive for AccessType {
+    fn from_i64(_: i64) -> Option<Self> {
+        None
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        let n = n as u16;
+
+        if let Some(ofc) = StandardAccessType::from_u16(n) {
+            return Some(AccessType::Standard(ofc));
+        }
+
+        return Some(AccessType::Reserved(n));
+    }
+}
+
+impl ToPrimitive for AccessType {
+    fn to_i64(&self) -> Option<i64> {
+        None
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            AccessType::Standard(ofc) => ofc.to_u64(),
+            AccessType::Reserved(n) => Some(*n as u64),
+        }
+    }
+}
+
 impl PtpStorageInfo {
     pub fn decode<T: PtpRead>(cur: &mut T) -> Result<PtpStorageInfo, Error> {
         Ok(PtpStorageInfo {
             storage_type: cur.read_ptp_u16()?,
             filesystem_type: cur.read_ptp_u16()?,
-            access_capability: cur.read_ptp_u16()?,
+            access_capability: AccessType::from_u16(cur.read_ptp_u16()?).unwrap(),
             max_capacity: cur.read_ptp_u64()?,
             free_space_in_bytes: cur.read_ptp_u64()?,
             free_space_in_images: cur.read_ptp_u32()?,
