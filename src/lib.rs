@@ -350,8 +350,8 @@ impl<T: AsRef<[u8]>> PtpRead for Cursor<T> {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum PtpDataType {
+#[derive(Debug, Eq, PartialEq, PartialOrd, Clone)]
+pub enum PtpData {
     UNDEF,
     INT8(i8),
     UINT8(u8),
@@ -376,9 +376,9 @@ pub enum PtpDataType {
     STR(String),
 }
 
-impl PtpDataType {
+impl PtpData {
     pub fn encode(&self) -> Vec<u8> {
-        use self::PtpDataType::*;
+        use self::PtpData::*;
         let mut out = vec![];
         match self {
             // UNDEF => {},
@@ -490,8 +490,8 @@ impl PtpDataType {
         out
     }
 
-    pub fn read_type<T: PtpRead>(kind: u16, reader: &mut T) -> Result<PtpDataType, Error> {
-        use self::PtpDataType::*;
+    pub fn read_type<T: PtpRead>(kind: u16, reader: &mut T) -> Result<PtpData, Error> {
+        use self::PtpData::*;
         Ok(match kind {
             // 0x0000 => UNDEF,
             0x0001 => INT8(reader.read_ptp_i8()?),
@@ -520,67 +520,92 @@ impl PtpDataType {
     }
 }
 
-impl<'a> From<i8> for PtpDataType {
+impl ToPrimitive for PtpData {
+    fn to_i64(&self) -> Option<i64> {
+        match self {
+            PtpData::INT8(v) => Some(*v as i64),
+            PtpData::UINT8(v) => Some(*v as i64),
+            PtpData::INT16(v) => Some(*v as i64),
+            PtpData::UINT16(v) => Some(*v as i64),
+            PtpData::INT32(v) => Some(*v as i64),
+            PtpData::UINT32(v) => Some(*v as i64),
+            PtpData::INT64(v) => Some(*v as i64),
+            _ => None
+        }
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            PtpData::UINT8(v) => Some(*v as u64),
+            PtpData::UINT16(v) => Some(*v as u64),
+            PtpData::UINT32(v) => Some(*v as u64),
+            PtpData::UINT64(v) => Some(*v as u64),
+            _ => None
+        }
+    }
+}
+
+impl<'a> From<i8> for PtpData {
     fn from(value: i8) -> Self {
-        PtpDataType::INT8(value)
+        PtpData::INT8(value)
     }
 }
 
-impl<'a> From<u8> for PtpDataType {
+impl<'a> From<u8> for PtpData {
     fn from(value: u8) -> Self {
-        PtpDataType::UINT8(value)
+        PtpData::UINT8(value)
     }
 }
 
-impl<'a> From<i16> for PtpDataType {
+impl<'a> From<i16> for PtpData {
     fn from(value: i16) -> Self {
-        PtpDataType::INT16(value)
+        PtpData::INT16(value)
     }
 }
 
-impl<'a> From<u16> for PtpDataType {
+impl<'a> From<u16> for PtpData {
     fn from(value: u16) -> Self {
-        PtpDataType::UINT16(value)
+        PtpData::UINT16(value)
     }
 }
 
-impl<'a> From<i32> for PtpDataType {
+impl<'a> From<i32> for PtpData {
     fn from(value: i32) -> Self {
-        PtpDataType::INT32(value)
+        PtpData::INT32(value)
     }
 }
 
-impl<'a> From<u32> for PtpDataType {
+impl<'a> From<u32> for PtpData {
     fn from(value: u32) -> Self {
-        PtpDataType::UINT32(value)
+        PtpData::UINT32(value)
     }
 }
 
-impl<'a> From<i64> for PtpDataType {
+impl<'a> From<i64> for PtpData {
     fn from(value: i64) -> Self {
-        PtpDataType::INT64(value)
+        PtpData::INT64(value)
     }
 }
 
-impl<'a> From<u64> for PtpDataType {
+impl<'a> From<u64> for PtpData {
     fn from(value: u64) -> Self {
-        PtpDataType::UINT64(value)
+        PtpData::UINT64(value)
     }
 }
 
-impl<'a> From<&'a str> for PtpDataType {
+impl<'a> From<&'a str> for PtpData {
     fn from(value: &'a str) -> Self {
-        PtpDataType::STR(value.to_owned())
+        PtpData::STR(value.to_owned())
     }
 }
 
-impl<'a> From<String> for PtpDataType {
+impl<'a> From<String> for PtpData {
     fn from(value: String) -> Self {
-        PtpDataType::STR(value)
+        PtpData::STR(value)
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PtpDeviceInfo {
     pub version: u16,
     pub vendor_ex_id: u32,
@@ -703,12 +728,12 @@ impl PtpStorageInfo {
 pub enum PtpFormData {
     None,
     Range {
-        min_value: PtpDataType,
-        max_value: PtpDataType,
-        step: PtpDataType,
+        min_value: PtpData,
+        max_value: PtpData,
+        step: PtpData,
     },
     Enumeration {
-        array: Vec<PtpDataType>,
+        array: Vec<PtpData>,
     },
 }
 
@@ -718,8 +743,8 @@ pub struct PtpPropInfo {
     pub data_type: u16,
     pub get_set: u8,
     pub is_enable: u8,
-    pub factory_default: PtpDataType,
-    pub current: PtpDataType,
+    pub factory_default: PtpData,
+    pub current: PtpData,
     pub form: PtpFormData,
 }
 
@@ -734,22 +759,22 @@ impl PtpPropInfo {
             },
             get_set: cur.read_u8()?,
             is_enable: cur.read_u8()?,
-            factory_default: PtpDataType::read_type(data_type, cur)?,
-            current: PtpDataType::read_type(data_type, cur)?,
+            factory_default: PtpData::read_type(data_type, cur)?,
+            current: PtpData::read_type(data_type, cur)?,
             form: {
                 match cur.read_u8()? {
                     // 0x00 => PtpFormData::None,
                     0x01 => PtpFormData::Range {
-                        min_value: PtpDataType::read_type(data_type, cur)?,
-                        max_value: PtpDataType::read_type(data_type, cur)?,
-                        step: PtpDataType::read_type(data_type, cur)?,
+                        min_value: PtpData::read_type(data_type, cur)?,
+                        max_value: PtpData::read_type(data_type, cur)?,
+                        step: PtpData::read_type(data_type, cur)?,
                     },
                     0x02 => PtpFormData::Enumeration {
                         array: {
                             let len = cur.read_u16::<LittleEndian>()? as usize;
                             let mut arr = Vec::with_capacity(len);
                             for _ in 0..len {
-                                arr.push(PtpDataType::read_type(data_type, cur)?);
+                                arr.push(PtpData::read_type(data_type, cur)?);
                             }
                             arr
                         },
