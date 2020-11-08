@@ -60,6 +60,55 @@ pub enum ObjectFormatCode {
     ImageOnly,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObjectFormatCategory {
+    Ancillary,
+    Image,
+    Unknown,
+}
+
+impl ObjectFormatCode {
+    pub fn category(&self) -> ObjectFormatCategory {
+        match self {
+            ObjectFormatCode::Standard(sofc) => match sofc {
+                StandardObjectFormatCode::UndefinedNonImage
+                | StandardObjectFormatCode::Association
+                | StandardObjectFormatCode::Script
+                | StandardObjectFormatCode::Executable
+                | StandardObjectFormatCode::Text
+                | StandardObjectFormatCode::Html
+                | StandardObjectFormatCode::Dpof
+                | StandardObjectFormatCode::Aiff
+                | StandardObjectFormatCode::Wav
+                | StandardObjectFormatCode::Mp3
+                | StandardObjectFormatCode::Avi
+                | StandardObjectFormatCode::Mpeg
+                | StandardObjectFormatCode::Asf => ObjectFormatCategory::Ancillary,
+                StandardObjectFormatCode::UndefinedImage
+                | StandardObjectFormatCode::ExifJpeg
+                | StandardObjectFormatCode::TiffEp
+                | StandardObjectFormatCode::FlashPix
+                | StandardObjectFormatCode::Bmp
+                | StandardObjectFormatCode::Ciff
+                | StandardObjectFormatCode::UndefinedReserved
+                | StandardObjectFormatCode::Gif
+                | StandardObjectFormatCode::Jfif
+                | StandardObjectFormatCode::Pcd
+                | StandardObjectFormatCode::Pict
+                | StandardObjectFormatCode::Png
+                | StandardObjectFormatCode::UndefinedReserved2
+                | StandardObjectFormatCode::Tiff
+                | StandardObjectFormatCode::TiffIt
+                | StandardObjectFormatCode::Jp2
+                | StandardObjectFormatCode::Jpx => ObjectFormatCategory::Image,
+                _ => ObjectFormatCategory::Unknown,
+            },
+            ObjectFormatCode::ImageOnly => ObjectFormatCategory::Image,
+            _ => ObjectFormatCategory::Unknown,
+        }
+    }
+}
+
 impl FromPrimitive for ObjectFormatCode {
     fn from_i64(_: i64) -> Option<Self> {
         None
