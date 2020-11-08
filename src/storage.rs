@@ -13,7 +13,7 @@ impl ObjectHandle {
 
 impl Display for ObjectHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ObjectHandle(0x{:08x})", self.0)
+        write!(f, "0x{:08x}", self.0)
     }
 }
 
@@ -226,6 +226,6 @@ impl StorageId {
 
 impl Display for StorageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "StorageId(0x{:08x})", self.0)
+        write!(f, "0x{:08x}", self.0)
     }
 }
