@@ -499,7 +499,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         format: Option<ObjectFormatCode>,
         parent: Option<ObjectHandle>,
         timeout: Option<Duration>,
-    ) -> Result<Vec<u32>, Error> {
+    ) -> Result<Vec<ObjectHandle>, Error> {
         let data = self.command(
             StandardCommandCode::GetObjectHandles.into(),
             &[
@@ -515,7 +515,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         let value = cur.read_ptp_u32_vec()?;
         cur.expect_end()?;
 
-        Ok(value)
+        Ok(value.into_iter().map(|oh| ObjectHandle(sid)).collect())
     }
 
     // handle_id: None == root of store
@@ -565,7 +565,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(res)
     }
 
-    pub fn get_storage_ids(&mut self, timeout: Option<Duration>) -> Result<Vec<u32>, Error> {
+    pub fn get_storage_ids(&mut self, timeout: Option<Duration>) -> Result<Vec<StorageId>, Error> {
         let data = self.command(
             StandardCommandCode::GetStorageIDs.into(),
             &[],
@@ -578,7 +578,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         let value = cur.read_ptp_u32_vec()?;
         cur.expect_end()?;
 
-        Ok(value)
+        Ok(value.into_iter().map(|sid| StorageId(sid)).collect())
     }
 
     pub fn get_device_info(&mut self, timeout: Option<Duration>) -> Result<PtpDeviceInfo, Error> {
