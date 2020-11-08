@@ -194,10 +194,10 @@ impl FromPrimitive for AssociationCode {
         }
 
         if (n >> 15) & 1 == 1 {
-            return Some(ObjectFormatCode::Vendor(n));
+            return Some(AssociationCode::Vendor(n));
         }
 
-        return Some(ObjectFormatCode::Reserved(n));
+        return Some(AssociationCode::Reserved(n));
     }
 }
 
@@ -210,6 +210,144 @@ impl ToPrimitive for AssociationCode {
         match self {
             AssociationCode::Standard(ofc) => ofc.to_u64(),
             AssociationCode::Reserved(n) | AssociationCode::Vendor(n) => Some(*n as u64),
+        }
+    }
+}
+
+
+
+#[repr(u16)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy, FromPrimitive, ToPrimitive)]
+pub enum StandardAccessType {
+    ReadWrite = 0x0000,
+    ReadOnlyNoDelete,
+    ReadOnly,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+pub enum AccessType {
+    Standard(StandardAccessType),
+    Reserved(u16),
+}
+
+impl FromPrimitive for AccessType {
+    fn from_i64(_: i64) -> Option<Self> {
+        None
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        let n = n as u16;
+
+        if let Some(ofc) = StandardAccessType::from_u16(n) {
+            return Some(AccessType::Standard(ofc));
+        }
+
+        return Some(AccessType::Reserved(n));
+    }
+}
+
+impl ToPrimitive for AccessType {
+    fn to_i64(&self) -> Option<i64> {
+        None
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            AccessType::Standard(ofc) => ofc.to_u64(),
+            AccessType::Reserved(n) => Some(*n as u64),
+        }
+    }
+}
+
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+pub enum StandardFilesystemType {
+    Undefined = 0x0000,
+    GenericFlat,
+    GenericHierarchical,
+    DCF,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FilesystemType {
+    Standard(StandardFilesystemType),
+    Reserved(u16),
+    Vendor(u16),
+}
+
+impl FromPrimitive for FilesystemType {
+    fn from_i64(_: i64) -> Option<Self> {
+        None
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        let n = n as u16;
+
+        if let Some(ofc) = StandardFilesystemType::from_u16(n) {
+            return Some(FilesystemType::Standard(ofc));
+        }
+
+        if (n >> 15) & 1 == 1 {
+            return Some(FilesystemType::Vendor(n));
+        }
+
+        return Some(FilesystemType::Reserved(n));
+    }
+}
+
+impl ToPrimitive for FilesystemType {
+    fn to_i64(&self) -> Option<i64> {
+        None
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            FilesystemType::Standard(ofc) => ofc.to_u64(),
+            FilesystemType::Reserved(n) | FilesystemType::Vendor(n) => Some(*n as u64),
+        }
+    }
+}
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+pub enum StandardStorageType {
+    Undefined = 0x0000,
+    FixedRom,
+    RemovableRom,
+    FixedRam,
+    RemovableRam,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StorageType {
+    Standard(StandardStorageType),
+    Reserved(u16),
+}
+
+impl FromPrimitive for StorageType {
+    fn from_i64(_: i64) -> Option<Self> {
+        None
+    }
+
+    fn from_u64(n: u64) -> Option<Self> {
+        let n = n as u16;
+
+        if let Some(ofc) = StandardStorageType::from_u16(n) {
+            return Some(StorageType::Standard(ofc));
+        }
+
+        return Some(StorageType::Reserved(n));
+    }
+}
+
+impl ToPrimitive for StorageType {
+    fn to_i64(&self) -> Option<i64> {
+        None
+    }
+
+    fn to_u64(&self) -> Option<u64> {
+        match self {
+            StorageType::Standard(ofc) => ofc.to_u64(),
+            StorageType::Reserved(n) => Some(*n as u64),
         }
     }
 }
