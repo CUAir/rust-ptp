@@ -493,6 +493,10 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         )
     }
 
+    /// Gets the object handles contained in a storage. If `parent` is not
+    /// specified, it will return every object in the storage. If `parent` is
+    /// ObjectHandle::root(), then it will return only those at the "root"
+    /// level.
     pub fn get_object_handles(
         &mut self,
         storage_id: StorageId,
@@ -515,7 +519,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         let value = cur.read_ptp_u32_vec()?;
         cur.expect_end()?;
 
-        Ok(value.into_iter().map(|oh| ObjectHandle(sid)).collect())
+        Ok(value.into_iter().map(|oh| ObjectHandle(oh)).collect())
     }
 
     // handle_id: None == root of store
