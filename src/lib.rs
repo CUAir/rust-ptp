@@ -547,12 +547,12 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
     pub fn get_storage_info(
         &mut self,
-        storage_id: u32,
+        storage_id: StorageId,
         timeout: Option<Duration>,
     ) -> Result<PtpStorageInfo, Error> {
         let data = self.command(
             StandardCommandCode::GetStorageInfo.into(),
-            &[storage_id],
+            &[storage_id.0],
             None,
             timeout,
         )?;
