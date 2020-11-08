@@ -17,12 +17,14 @@ use std::slice;
 use std::time::Duration;
 
 mod command;
-mod response;
 mod data;
+mod response;
+mod storage;
 
 pub use crate::command::*;
-pub use crate::response::*;
 pub use crate::data::*;
+pub use crate::response::*;
+pub use crate::storage::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 #[repr(u16)]
@@ -464,39 +466,47 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok((cinfo, payload))
     }
 
-    pub fn get_objectinfo(
+    pub fn get_object_info(
         &mut self,
-        handle: u32,
+        handle: ObjectHandle,
         timeout: Option<Duration>,
     ) -> Result<PtpObjectInfo, Error> {
         let data = self.command(
             StandardCommandCode::GetObjectInfo.into(),
-            &[handle],
+            &[handle.0],
             None,
             timeout,
         )?;
         Ok(PtpObjectInfo::decode(&data)?)
     }
 
-    pub fn get_object(&mut self, handle: u32, timeout: Option<Duration>) -> Result<Vec<u8>, Error> {
+    pub fn get_object(
+        &mut self,
+        handle: ObjectHandle,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<u8>, Error> {
         self.command(
             StandardCommandCode::GetObject.into(),
-            &[handle],
+            &[handle.0],
             None,
             timeout,
         )
     }
 
-    pub fn get_objecthandles(
+    pub fn get_object_handles(
         &mut self,
-        storage_id: u32,
-        handle_id: u32,
-        filter: Option<u32>,
+        storage_id: StorageId,
+        format: Option<ObjectFormatCode>,
+        parent: Option<ObjectHandle>,
         timeout: Option<Duration>,
     ) -> Result<Vec<u32>, Error> {
         let data = self.command(
             StandardCommandCode::GetObjectHandles.into(),
-            &[storage_id, filter.unwrap_or(0x0), handle_id],
+            &[
+                storage_id.0,
+                format.map_or(0x0, |fmt| fmt.to_u32().unwrap()),
+                parent.map_or(0x0, |p| p.0),
+            ],
             None,
             timeout,
         )?;
@@ -508,35 +518,21 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(value)
     }
 
-    pub fn get_objecthandles_root(
-        &mut self,
-        storage_id: u32,
-        filter: Option<u32>,
-        timeout: Option<Duration>,
-    ) -> Result<Vec<u32>, Error> {
-        self.get_objecthandles(storage_id, 0xFFFFFFFF, filter, timeout)
-    }
-
-    pub fn get_objecthandles_all(
-        &mut self,
-        storage_id: u32,
-        filter: Option<u32>,
-        timeout: Option<Duration>,
-    ) -> Result<Vec<u32>, Error> {
-        self.get_objecthandles(storage_id, 0x0, filter, timeout)
-    }
-
     // handle_id: None == root of store
-    pub fn get_numobjects(
+    pub fn get_num_objects(
         &mut self,
-        storage_id: u32,
-        handle_id: u32,
-        filter: Option<u32>,
+        storage_id: Option<StorageId>,
+        format: Option<ObjectFormatCode>,
+        parent: Option<ObjectHandle>,
         timeout: Option<Duration>,
     ) -> Result<u32, Error> {
         let data = self.command(
             StandardCommandCode::GetNumObjects.into(),
-            &[storage_id, filter.unwrap_or(0x0), handle_id],
+            &[
+                storage_id.map_or(0xFFFFFFFF, |sid| sid.0),
+                format.map_or(0x0, |fmt| fmt.to_u32().unwrap()),
+                parent.map_or(0x0, |oh| oh.0),
+            ],
             None,
             timeout,
         )?;
@@ -569,7 +565,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(res)
     }
 
-    pub fn get_storageids(&mut self, timeout: Option<Duration>) -> Result<Vec<u32>, Error> {
+    pub fn get_storage_ids(&mut self, timeout: Option<Duration>) -> Result<Vec<u32>, Error> {
         let data = self.command(
             StandardCommandCode::GetStorageIDs.into(),
             &[],
@@ -583,24 +579,6 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         cur.expect_end()?;
 
         Ok(value)
-    }
-
-    pub fn get_numobjects_roots(
-        &mut self,
-        storage_id: u32,
-        filter: Option<u32>,
-        timeout: Option<Duration>,
-    ) -> Result<u32, Error> {
-        self.get_numobjects(storage_id, 0xFFFFFFFF, filter, timeout)
-    }
-
-    pub fn get_numobjects_all(
-        &mut self,
-        storage_id: u32,
-        filter: Option<u32>,
-        timeout: Option<Duration>,
-    ) -> Result<u32, Error> {
-        self.get_numobjects(storage_id, 0x0, filter, timeout)
     }
 
     pub fn get_device_info(&mut self, timeout: Option<Duration>) -> Result<PtpDeviceInfo, Error> {
@@ -644,7 +622,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
 #[derive(Debug, Clone)]
 pub struct PtpObjectTree {
-    pub handle: u32,
+    pub handle: ObjectHandle,
     pub info: PtpObjectInfo,
     pub children: Option<Vec<PtpObjectTree>>,
 }
