@@ -11,11 +11,11 @@ use thiserror::Error;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use std::io;
-use std::io::Cursor;
+use std::{sync::atomic::AtomicU32, io::Cursor};
 use std::slice;
 use std::time::Duration;
 use std::{cmp::min, mem::MaybeUninit};
+use std::{io, sync::atomic::Ordering};
 
 mod command;
 mod data;
@@ -56,6 +56,9 @@ pub enum Error {
 
     #[error("the data received was malformed: bad event code")]
     BadEventCode,
+
+    #[error("received an event with no payload")]
+    NoEventPayload,
 
     /// Another libusb error
     #[error("a usb error occurred")]
@@ -295,7 +298,7 @@ pub struct PtpCamera<C: libusb::UsbContext> {
     ep_in: u8,
     ep_out: u8,
     ep_int: u8,
-    current_tid: u32,
+    current_tid: std::sync::atomic::AtomicU32,
     handle: libusb::DeviceHandle<C>,
 }
 
@@ -330,7 +333,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             ep_in: find_endpoint(libusb::Direction::In, libusb::TransferType::Bulk)?,
             ep_out: find_endpoint(libusb::Direction::Out, libusb::TransferType::Bulk)?,
             ep_int: find_endpoint(libusb::Direction::In, libusb::TransferType::Interrupt)?,
-            current_tid: 0,
+            current_tid: AtomicU32::new(0),
             handle: handle,
         })
     }
@@ -344,10 +347,14 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
         // read both, check the status on the response, and return the data payload, if any.
         loop {
-            let buf = self.read_txn_phase_interrupt(timeout)?;
-            let (container, payload) = self.parse_txn_phase(buf)?;
+            let (container, payload) = self.read_txn_phase_interrupt(timeout)?;
 
-            trace!("event tid: {}, current tid {}", container.tid, self.current_tid);
+            trace!(
+                "event tid: {}, current tid {}",
+                container.tid,
+                self.current_tid.load(Ordering::Relaxed)
+            );
+
             // if !container.belongs_to(tid) {
             //     return Err(Error::Malformed(format!(
             //         "mismatched txnid {}, expecting {}",
@@ -357,7 +364,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
             match container.kind {
                 PtpContainerType::Event => {
-                    return Ok(PtpEvent::new(container.code, payload.as_ref()));
+                    return PtpEvent::new(container.code, payload.as_ref());
                 }
                 _ => {}
             }
@@ -373,7 +380,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     /// NB: each phase involves a separate USB transfer, and `timeout` is used for each phase,
     /// so the total time taken may be greater than `timeout`.
     pub fn command(
-        &mut self,
+        &self,
         code: CommandCode,
         params: &[u32],
         data: Option<&[u8]>,
@@ -382,8 +389,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         // timeout of 0 means unlimited timeout.
         let timeout = timeout.unwrap_or(Duration::new(0, 0));
 
-        let tid = self.current_tid;
-        self.current_tid += 1;
+        let tid = self.current_tid.fetch_add(1, Ordering::AcqRel);
 
         // Prepare payload of the request phase, containing the parameters
         let mut request_payload = Vec::with_capacity(params.len() * 4);
@@ -407,14 +413,15 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         // read both, check the status on the response, and return the data payload, if any.
         let mut data_phase_payload = vec![];
         loop {
-            let buf = self.read_txn_phase_bulk(timeout)?;
-            let (container, payload) = self.parse_txn_phase(buf)?;
+            let (container, payload) = self.read_txn_phase_bulk(timeout)?;
+
             if !container.belongs_to(tid) {
                 return Err(Error::Malformed(format!(
                     "mismatched txnid {}, expecting {}",
                     container.tid, tid
                 )));
             }
+
             match container.kind {
                 PtpContainerType::Data => {
                     data_phase_payload = payload;
@@ -432,7 +439,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     }
 
     fn write_txn_phase(
-        &mut self,
+        &self,
         kind: PtpContainerType,
         code: CommandCode,
         tid: u32,
@@ -462,7 +469,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(())
     }
 
-    fn read_txn_phase_bulk(&mut self, timeout: Duration) -> Result<&[u8], Error> {
+    fn read_txn_phase_bulk(&self, timeout: Duration) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
         // buf is stack allocated and intended to be large enough to accomodate most
         // cmd/ctrl data (ie, not media) without allocating. payload handling below
         // deals with larger media responses. mark it as uninitalized to avoid paying
@@ -476,28 +483,6 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             &unintialized_buf[..n]
         };
 
-        Ok(buf)
-    }
-
-    fn read_txn_phase_interrupt(&mut self, timeout: Duration) -> Result<&[u8], Error> {
-        // buf is stack allocated and intended to be large enough to accomodate most
-        // cmd/ctrl data (ie, not media) without allocating. payload handling below
-        // deals with larger media responses. mark it as uninitalized to avoid paying
-        // for zeroing out 8k of memory, since rust doesn't know what libusb does with this memory.
-        let mut unintialized_buf: [u8; 8 * 1024];
-        let buf = unsafe {
-            unintialized_buf = ::std::mem::uninitialized();
-            let n = self
-                .handle
-                .read_interrupt(self.ep_int, &mut unintialized_buf[..], timeout)?;
-            &unintialized_buf[..n]
-        };
-
-        Ok(buf)
-    }
-
-    // helper for command() above, retrieve container info and payload for the current phase
-    fn parse_txn_phase(&mut self, buf: &[u8]) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
         let cinfo = PtpContainerInfo::parse(&buf[..])?;
         trace!("container {:?}", cinfo);
 
@@ -531,8 +516,42 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok((cinfo, payload))
     }
 
+    fn read_txn_phase_interrupt(
+        &self,
+        timeout: Duration,
+    ) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
+        // buf is stack allocated and intended to be large enough to accomodate most
+        // cmd/ctrl data (ie, not media) without allocating. payload handling below
+        // deals with larger media responses. mark it as uninitalized to avoid paying
+        // for zeroing out 8k of memory, since rust doesn't know what libusb does with this memory.
+        let mut unintialized_buf: [u8; 24];
+        let buf = unsafe {
+            unintialized_buf = ::std::mem::uninitialized();
+            let n = self
+                .handle
+                .read_bulk(self.ep_in, &mut unintialized_buf[..], timeout)?;
+            &unintialized_buf[..n]
+        };
+
+        let cinfo = PtpContainerInfo::parse(&buf[..])?;
+        trace!("container {:?}", cinfo);
+
+        // no payload? we're done
+        if cinfo.payload_len == 0 {
+            warn!("received interrupt data with no payload");
+
+            return Err(Error::NoEventPayload);
+        }
+
+        // allocate one extra to avoid a separate read for trailing short packet
+        let mut payload = Vec::with_capacity(cinfo.payload_len + 1);
+        payload.extend_from_slice(&buf[PTP_CONTAINER_INFO_SIZE..]);
+
+        Ok((cinfo, payload))
+    }
+
     pub fn get_object_info(
-        &mut self,
+        &self,
         handle: ObjectHandle,
         timeout: Option<Duration>,
     ) -> Result<PtpObjectInfo, Error> {
@@ -546,7 +565,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     }
 
     pub fn get_object(
-        &mut self,
+        &self,
         handle: ObjectHandle,
         timeout: Option<Duration>,
     ) -> Result<Vec<u8>, Error> {
@@ -563,7 +582,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     /// ObjectHandle::root(), then it will return only those at the "root"
     /// level.
     pub fn get_object_handles(
-        &mut self,
+        &self,
         storage_id: StorageId,
         format: Option<ObjectFormatCode>,
         parent: Option<ObjectHandle>,
@@ -589,7 +608,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
     // handle_id: None == root of store
     pub fn get_num_objects(
-        &mut self,
+        &self,
         storage_id: Option<StorageId>,
         format: Option<ObjectFormatCode>,
         parent: Option<ObjectHandle>,
@@ -615,7 +634,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     }
 
     pub fn get_storage_info(
-        &mut self,
+        &self,
         storage_id: StorageId,
         timeout: Option<Duration>,
     ) -> Result<PtpStorageInfo, Error> {
@@ -634,7 +653,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(res)
     }
 
-    pub fn get_storage_ids(&mut self, timeout: Option<Duration>) -> Result<Vec<StorageId>, Error> {
+    pub fn get_storage_ids(&self, timeout: Option<Duration>) -> Result<Vec<StorageId>, Error> {
         let data = self.command(
             StandardCommandCode::GetStorageIDs.into(),
             &[],
@@ -650,7 +669,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(value.into_iter().map(|sid| StorageId(sid)).collect())
     }
 
-    pub fn get_device_info(&mut self, timeout: Option<Duration>) -> Result<PtpDeviceInfo, Error> {
+    pub fn get_device_info(&self, timeout: Option<Duration>) -> Result<PtpDeviceInfo, Error> {
         let data = self.command(
             StandardCommandCode::GetDeviceInfo.into(),
             &[0, 0, 0],
@@ -663,7 +682,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(device_info)
     }
 
-    pub fn open_session(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
+    pub fn open_session(&self, timeout: Option<Duration>) -> Result<(), Error> {
         let session_id = 3;
 
         self.command(
@@ -676,7 +695,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(())
     }
 
-    pub fn close_session(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
+    pub fn close_session(&self, timeout: Option<Duration>) -> Result<(), Error> {
         self.command(StandardCommandCode::CloseSession.into(), &[], None, timeout)?;
 
         Ok(())
