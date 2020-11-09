@@ -4,20 +4,22 @@ extern crate log;
 extern crate num_derive;
 
 use byteorder;
+use event::PtpEvent;
 use num_traits::{FromPrimitive, ToPrimitive};
 use rusb as libusb;
 use thiserror::Error;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use std::cmp::min;
 use std::io;
 use std::io::Cursor;
 use std::slice;
 use std::time::Duration;
+use std::{cmp::min, mem::MaybeUninit};
 
 mod command;
 mod data;
+mod event;
 mod response;
 mod storage;
 
@@ -51,6 +53,9 @@ pub enum Error {
 
     #[error("the data received was malformed: bad association code")]
     BadAssociationCode,
+
+    #[error("the data received was malformed: bad event code")]
+    BadEventCode,
 
     /// Another libusb error
     #[error("a usb error occurred")]
@@ -273,9 +278,9 @@ impl PtpContainerInfo {
 
         Ok(PtpContainerInfo {
             payload_len: len as usize - PTP_CONTAINER_INFO_SIZE,
-            kind: kind,
-            tid: tid,
-            code: code,
+            kind,
+            code,
+            tid,
         })
     }
 
@@ -330,6 +335,35 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         })
     }
 
+    pub fn event(&self, timeout: Option<Duration>) -> Result<PtpEvent, Error> {
+        // timeout of 0 means unlimited timeout.
+        let timeout = timeout.unwrap_or(Duration::new(0, 0));
+
+        // let tid = self.current_tid;
+        // self.current_tid += 1;
+
+        // read both, check the status on the response, and return the data payload, if any.
+        loop {
+            let buf = self.read_txn_phase_interrupt(timeout)?;
+            let (container, payload) = self.parse_txn_phase(buf)?;
+
+            trace!("event tid: {}, current tid {}", container.tid, self.current_tid);
+            // if !container.belongs_to(tid) {
+            //     return Err(Error::Malformed(format!(
+            //         "mismatched txnid {}, expecting {}",
+            //         container.tid, tid
+            //     )));
+            // }
+
+            match container.kind {
+                PtpContainerType::Event => {
+                    return Ok(PtpEvent::new(container.code, payload.as_ref()));
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// execute a PTP transaction.
     /// consists of the following phases:
     ///  - command
@@ -373,7 +407,8 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         // read both, check the status on the response, and return the data payload, if any.
         let mut data_phase_payload = vec![];
         loop {
-            let (container, payload) = self.read_txn_phase(timeout)?;
+            let buf = self.read_txn_phase_bulk(timeout)?;
+            let (container, payload) = self.parse_txn_phase(buf)?;
             if !container.belongs_to(tid) {
                 return Err(Error::Malformed(format!(
                     "mismatched txnid {}, expecting {}",
@@ -427,8 +462,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(())
     }
 
-    // helper for command() above, retrieve container info and payload for the current phase
-    fn read_txn_phase(&mut self, timeout: Duration) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
+    fn read_txn_phase_bulk(&mut self, timeout: Duration) -> Result<&[u8], Error> {
         // buf is stack allocated and intended to be large enough to accomodate most
         // cmd/ctrl data (ie, not media) without allocating. payload handling below
         // deals with larger media responses. mark it as uninitalized to avoid paying
@@ -442,6 +476,28 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             &unintialized_buf[..n]
         };
 
+        Ok(buf)
+    }
+
+    fn read_txn_phase_interrupt(&mut self, timeout: Duration) -> Result<&[u8], Error> {
+        // buf is stack allocated and intended to be large enough to accomodate most
+        // cmd/ctrl data (ie, not media) without allocating. payload handling below
+        // deals with larger media responses. mark it as uninitalized to avoid paying
+        // for zeroing out 8k of memory, since rust doesn't know what libusb does with this memory.
+        let mut unintialized_buf: [u8; 8 * 1024];
+        let buf = unsafe {
+            unintialized_buf = ::std::mem::uninitialized();
+            let n = self
+                .handle
+                .read_interrupt(self.ep_int, &mut unintialized_buf[..], timeout)?;
+            &unintialized_buf[..n]
+        };
+
+        Ok(buf)
+    }
+
+    // helper for command() above, retrieve container info and payload for the current phase
+    fn parse_txn_phase(&mut self, buf: &[u8]) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
         let cinfo = PtpContainerInfo::parse(&buf[..])?;
         trace!("container {:?}", cinfo);
 
