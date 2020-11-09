@@ -11,6 +11,18 @@ impl ObjectHandle {
     }
 }
 
+impl Into<u32> for ObjectHandle {
+    fn into(self) -> u32 {
+        self.0
+    }
+}
+
+impl From<u32> for ObjectHandle {
+    fn from(val: u32) -> Self {
+        ObjectHandle(val)
+    }
+}
+
 impl Display for ObjectHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{:08x}", self.0)
@@ -359,6 +371,18 @@ impl StorageId {
     /// Returns a StorageId that represents all of the storages combined.
     pub fn all() -> StorageId {
         StorageId(0xFFFFFFFF)
+    }
+}
+
+impl Into<u32> for StorageId {
+    fn into(self) -> u32 {
+        self.0
+    }
+}
+
+impl From<u32> for StorageId {
+    fn from(val: u32) -> Self {
+        StorageId(val)
     }
 }
 
