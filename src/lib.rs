@@ -27,6 +27,7 @@ pub use crate::command::*;
 pub use crate::data::*;
 pub use crate::response::*;
 pub use crate::storage::*;
+pub use crate::event::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 #[repr(u16)]
@@ -529,7 +530,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             unintialized_buf = ::std::mem::uninitialized();
             let n = self
                 .handle
-                .read_bulk(self.ep_in, &mut unintialized_buf[..], timeout)?;
+                .read_interrupt(self.ep_int, &mut unintialized_buf[..], timeout)?;
             &unintialized_buf[..n]
         };
 
