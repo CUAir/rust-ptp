@@ -32,6 +32,7 @@ impl Display for ObjectHandle {
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
 pub enum StandardObjectFormatCode {
+    Undefined = 0x0000,
     UndefinedNonImage = 0x3000,
     Association,
     Script,
@@ -129,7 +130,6 @@ impl FromPrimitive for ObjectFormatCode {
     fn from_u64(n: u64) -> Option<Self> {
         let n = n as u16;
 
-        const MSN_MASK: u16 = 0b1111_0000_0000_0000;
         const RESERVED_MSN: u16 = 0b0011;
         const VENDOR_MSN: u16 = 0b1011;
 
@@ -141,13 +141,13 @@ impl FromPrimitive for ObjectFormatCode {
             return Some(ObjectFormatCode::ImageOnly);
         }
 
-        let msn = (n & MSN_MASK) >> 12;
+        let msn = n >> 12;
 
-        if msn == VENDOR_MSN {
+        if msn & VENDOR_MSN == VENDOR_MSN {
             return Some(ObjectFormatCode::Vendor(n));
         }
 
-        if msn == RESERVED_MSN {
+        if msn & RESERVED_MSN == RESERVED_MSN {
             return Some(ObjectFormatCode::Reserved(n));
         }
 
@@ -225,8 +225,6 @@ impl ToPrimitive for AssociationCode {
         }
     }
 }
-
-
 
 #[repr(u16)]
 #[derive(Debug, Clone, Eq, PartialEq, Copy, FromPrimitive, ToPrimitive)]
