@@ -96,8 +96,8 @@ impl LowerHex for StandardEventCode {
 
 #[derive(Debug, Clone)]
 pub struct PtpEvent {
-    code: EventCode,
-    params: [Option<u8>; 3],
+    pub code: EventCode,
+    pub params: [Option<u8>; 3],
 }
 
 impl PtpEvent {
