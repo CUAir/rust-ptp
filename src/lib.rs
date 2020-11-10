@@ -4,7 +4,6 @@ extern crate log;
 extern crate num_derive;
 
 use byteorder;
-use event::PtpEvent;
 use num_traits::{FromPrimitive, ToPrimitive};
 use rusb as libusb;
 use thiserror::Error;
