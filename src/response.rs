@@ -5,7 +5,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum ResponseCode {
     Standard(StandardResponseCode),
@@ -44,7 +44,7 @@ impl From<StandardResponseCode> for ResponseCode {
 }
 
 #[repr(u16)]
-#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardResponseCode {
     Undefined = 0x2000,

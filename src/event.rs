@@ -8,7 +8,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 
 use crate::Error;
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum EventCode {
     Standard(StandardEventCode),
@@ -75,7 +75,7 @@ impl From<StandardEventCode> for EventCode {
 }
 
 #[repr(u16)]
-#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardEventCode {
     Undefined = 0x4000,
@@ -100,7 +100,7 @@ impl LowerHex for StandardEventCode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PtpEvent {
     pub code: EventCode,

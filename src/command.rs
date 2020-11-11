@@ -5,7 +5,7 @@ use num_derive::{FromPrimitive, ToPrimitive};
 #[cfg(feature = "serde")]
 use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum CommandCode {
     Standard(StandardCommandCode),
@@ -60,7 +60,7 @@ impl From<StandardCommandCode> for CommandCode {
 }
 
 #[repr(u16)]
-#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardCommandCode {
     Undefined = 0x1000,
