@@ -1,12 +1,12 @@
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate num_derive;
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 use byteorder;
 use num_traits::{FromPrimitive, ToPrimitive};
+use num_derive::{FromPrimitive, ToPrimitive};
 use rusb as libusb;
 use thiserror::Error;
+use log::{debug, error, trace, warn};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
@@ -29,6 +29,7 @@ pub use crate::storage::*;
 pub use crate::event::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 #[repr(u16)]
 pub enum PtpContainerType {
     Command = 1,
@@ -70,6 +71,7 @@ pub enum Error {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PtpDeviceInfo {
     pub version: u16,
     pub vendor_ex_id: u32,
@@ -111,6 +113,7 @@ impl PtpDeviceInfo {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PtpObjectInfo {
     pub storage_id: u32,
     pub object_format: ObjectFormatCode,
@@ -165,6 +168,7 @@ impl PtpObjectInfo {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PtpStorageInfo {
     pub storage_type: StorageType,
     pub filesystem_type: FilesystemType,
@@ -192,6 +196,7 @@ impl PtpStorageInfo {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum PtpFormData {
     None,
     Range {
@@ -205,6 +210,7 @@ pub enum PtpFormData {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PtpPropInfo {
     pub property_code: u16,
     pub data_type: u16,
@@ -254,6 +260,7 @@ impl PtpPropInfo {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 struct PtpContainerInfo {
     /// payload len in bytes, usually relevant for data phases
     payload_len: usize,

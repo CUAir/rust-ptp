@@ -1,7 +1,12 @@
 use std::fmt::{self, LowerHex};
 use num_traits::{FromPrimitive, ToPrimitive};
+use num_derive::{FromPrimitive, ToPrimitive};
+
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum CommandCode {
     Standard(StandardCommandCode),
     Other(u16),
@@ -56,6 +61,7 @@ impl From<StandardCommandCode> for CommandCode {
 
 #[repr(u16)]
 #[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardCommandCode {
     Undefined = 0x1000,
     GetDeviceInfo = 0x1001,

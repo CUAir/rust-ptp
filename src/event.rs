@@ -1,10 +1,15 @@
 use std::fmt::{self, LowerHex};
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 use num_traits::{FromPrimitive, ToPrimitive};
+use num_derive::{FromPrimitive, ToPrimitive};
 
 use crate::Error;
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum EventCode {
     Standard(StandardEventCode),
     Vendor(u16),
@@ -71,6 +76,7 @@ impl From<StandardEventCode> for EventCode {
 
 #[repr(u16)]
 #[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardEventCode {
     Undefined = 0x4000,
     CancelTransaction,
@@ -95,6 +101,7 @@ impl LowerHex for StandardEventCode {
 }
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct PtpEvent {
     pub code: EventCode,
     pub params: [Option<u8>; 3],

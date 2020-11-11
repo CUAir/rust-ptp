@@ -1,5 +1,8 @@
 use std::io::{Cursor, Write};
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use num_traits::ToPrimitive;
 
@@ -134,6 +137,7 @@ impl<T: AsRef<[u8]>> PtpRead for Cursor<T> {
 }
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum PtpData {
   UNDEF,
   INT8(i8),

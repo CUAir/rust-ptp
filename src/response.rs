@@ -1,7 +1,12 @@
 use std::fmt::{self, LowerHex};
 use num_traits::{FromPrimitive, ToPrimitive};
+use num_derive::{FromPrimitive, ToPrimitive};
+
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum ResponseCode {
     Standard(StandardResponseCode),
     Other(u16),
@@ -40,6 +45,7 @@ impl From<StandardResponseCode> for ResponseCode {
 
 #[repr(u16)]
 #[derive(FromPrimitive, ToPrimitive, Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardResponseCode {
     Undefined = 0x2000,
     Ok = 0x2001,

@@ -1,7 +1,12 @@
 use num_traits::{FromPrimitive, ToPrimitive};
+use num_derive::{FromPrimitive, ToPrimitive};
 use std::fmt::Display;
 
+#[cfg(feature = "serde")]
+use serde::{Serialize, Deserialize};
+
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct ObjectHandle(pub(crate) u32);
 
 impl ObjectHandle {
@@ -31,6 +36,7 @@ impl Display for ObjectHandle {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardObjectFormatCode {
     Undefined = 0x0000,
     UndefinedNonImage = 0x3000,
@@ -66,6 +72,7 @@ pub enum StandardObjectFormatCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum ObjectFormatCode {
     Standard(StandardObjectFormatCode),
     Reserved(u16),
@@ -74,6 +81,7 @@ pub enum ObjectFormatCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum ObjectFormatCategory {
     Ancillary,
     Image,
@@ -171,6 +179,7 @@ impl ToPrimitive for ObjectFormatCode {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardAssociationCode {
     Undefined = 0x0000,
     GenericFolder,
@@ -183,6 +192,7 @@ pub enum StandardAssociationCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum AssociationCode {
     Standard(StandardAssociationCode),
     Reserved(u16),
@@ -228,6 +238,7 @@ impl ToPrimitive for AssociationCode {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Eq, PartialEq, Copy, FromPrimitive, ToPrimitive)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardAccessType {
     ReadWrite = 0x0000,
     ReadOnlyNoDelete,
@@ -235,6 +246,7 @@ pub enum StandardAccessType {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum AccessType {
     Standard(StandardAccessType),
     Reserved(u16),
@@ -271,6 +283,7 @@ impl ToPrimitive for AccessType {
 
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardFilesystemType {
     Undefined = 0x0000,
     GenericFlat,
@@ -279,6 +292,7 @@ pub enum StandardFilesystemType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum FilesystemType {
     Standard(StandardFilesystemType),
     Reserved(u16),
@@ -319,6 +333,7 @@ impl ToPrimitive for FilesystemType {
 }
 #[repr(u16)]
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StandardStorageType {
     Undefined = 0x0000,
     FixedRom,
@@ -328,6 +343,7 @@ pub enum StandardStorageType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum StorageType {
     Standard(StandardStorageType),
     Reserved(u16),
@@ -363,6 +379,7 @@ impl ToPrimitive for StorageType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct StorageId(pub(crate) u32);
 
 impl StorageId {
