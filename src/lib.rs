@@ -378,6 +378,12 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         }
     }
 
+    pub fn reset(&mut self) -> Result<(), Error> {
+        self.handle.reset()?;
+
+        Ok(())
+    }
+
     /// execute a PTP transaction.
     /// consists of the following phases:
     ///  - command
