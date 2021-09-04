@@ -1,6 +1,6 @@
 [package]
 name = "ptp"
-version = "0.6.1"
+version = "0.7.1"
 authors = ["Tim Ryan", "Ibiyemi Abiodun"]
 edition = "2018"
 description = "Picture Transfer Protocol driver"
@@ -10,7 +10,7 @@ homepage = "https://github.com/CUAir/rust-ptp"
 repository = "https://github.com/CUAir/rust-ptp"
 
 [dependencies]
-rusb = "0.7"
+rusb = "0.8"
 byteorder = "1.3"
 log = "0.4"
 num-derive = "0.3"
