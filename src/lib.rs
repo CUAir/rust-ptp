@@ -1,20 +1,20 @@
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use byteorder;
-use num_traits::{FromPrimitive, ToPrimitive};
+use log::{debug, error, trace, warn};
 use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 use rusb as libusb;
 use thiserror::Error;
-use log::{debug, error, trace, warn};
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-use std::{sync::atomic::AtomicU32, io::Cursor};
 use std::slice;
 use std::time::Duration;
 use std::{cmp::min, mem::MaybeUninit};
 use std::{io, sync::atomic::Ordering};
+use std::{io::Cursor, sync::atomic::AtomicU32};
 
 mod command;
 mod data;
@@ -24,9 +24,9 @@ mod storage;
 
 pub use crate::command::*;
 pub use crate::data::*;
+pub use crate::event::*;
 pub use crate::response::*;
 pub use crate::storage::*;
-pub use crate::event::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
@@ -343,9 +343,12 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             current_tid: AtomicU32::new(0),
             handle: handle,
         })
+
     }
 
-    pub fn event(&self, timeout: Option<Duration>) -> Result<PtpEvent, Error> {
+    /// Queries the PTP camera for an event. Returns Ok(None) if the operation
+    /// times out without receiving an event.
+    pub fn event(&self, timeout: Option<Duration>) -> Result<Option<PtpEvent>, Error> {
         // timeout of 0 means unlimited timeout.
         let timeout = timeout.unwrap_or(Duration::new(0, 0));
 
@@ -354,7 +357,11 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
         // read both, check the status on the response, and return the data payload, if any.
         loop {
-            let (container, payload) = self.read_txn_phase_interrupt(timeout)?;
+            let (container, payload) = match self.read_txn_phase_interrupt(timeout) {
+                Ok(v) => v,
+                Err(Error::Usb(rusb::Error::Timeout)) => return Ok(None),
+                Err(e) => return Err(e),
+            };
 
             trace!(
                 "event tid: {}, current tid {}",
@@ -371,7 +378,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
             match container.kind {
                 PtpContainerType::Event => {
-                    return PtpEvent::new(container.code, payload.as_ref());
+                    return PtpEvent::new(container.code, payload.as_ref()).map(|p| Some(p));
                 }
                 _ => {}
             }
