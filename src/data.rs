@@ -1,7 +1,7 @@
 use std::io::{Cursor, Write};
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use num_traits::ToPrimitive;

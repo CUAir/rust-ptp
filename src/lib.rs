@@ -1,9 +1,9 @@
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use byteorder;
 use log::{debug, error, trace, warn};
-use num_derive::{FromPrimitive, ToPrimitive};
+use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, ToPrimitive};
 use rusb as libusb;
 use thiserror::Error;
@@ -544,9 +544,8 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         // cmd/ctrl data (ie, not media) without allocating. payload handling below
         // deals with larger media responses. mark it as uninitalized to avoid paying
         // for zeroing out 8k of memory, since rust doesn't know what libusb does with this memory.
-        let mut unintialized_buf: [u8; 24];
-        let buf = unsafe {
-            unintialized_buf = ::std::mem::uninitialized();
+        let mut unintialized_buf: [u8; 24] = [0u8; 24];
+        let buf = {
             let n = self
                 .handle
                 .read_interrupt(self.ep_int, &mut unintialized_buf[..], timeout)?;

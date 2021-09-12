@@ -3,7 +3,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use std::fmt::Display;
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive, ToPrimitive, Ord, PartialOrd, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]

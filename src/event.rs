@@ -1,7 +1,7 @@
 use std::fmt::{self, LowerHex};
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::Serialize;
 
 use num_traits::{FromPrimitive, ToPrimitive};
 use num_derive::{FromPrimitive, ToPrimitive};
