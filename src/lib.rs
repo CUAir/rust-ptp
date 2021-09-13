@@ -343,7 +343,6 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             current_tid: AtomicU32::new(0),
             handle: handle,
         })
-
     }
 
     /// Queries the PTP camera for an event. Returns Ok(None) if the operation
@@ -490,20 +489,22 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     }
 
     fn read_txn_phase_bulk(&self, timeout: Duration) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
-        // buf is stack allocated and intended to be large enough to accomodate most
-        // cmd/ctrl data (ie, not media) without allocating. payload handling below
-        // deals with larger media responses. mark it as uninitalized to avoid paying
-        // for zeroing out 8k of memory, since rust doesn't know what libusb does with this memory.
-        let mut unintialized_buf: [u8; 8 * 1024];
-        let buf = unsafe {
-            unintialized_buf = ::std::mem::uninitialized();
-            let n = self
-                .handle
-                .read_bulk(self.ep_in, &mut unintialized_buf[..], timeout)?;
-            &unintialized_buf[..n]
-        };
+        // buf is stack allocated and intended to be large enough to accomodate
+        // most cmd/ctrl data (ie, not media) without allocating. payload
+        // handling below deals with larger media responses. mark it as
+        // uninitalized to avoid paying for zeroing out 8k of memory, since rust
+        // doesn't know what libusb does with this memory.
 
-        let cinfo = PtpContainerInfo::parse(&buf[..])?;
+        const BUF_SIZE: usize = 8192;
+
+        let mut buf: MaybeUninit<[u8; BUF_SIZE]> = MaybeUninit::uninit();
+        let n =
+            self.handle
+                .read_bulk(self.ep_in, unsafe { &mut (*buf.as_mut_ptr())[..] }, timeout)?;
+        let buf = unsafe { buf.assume_init() };
+        let buf = &buf[..n];
+
+        let cinfo = PtpContainerInfo::parse(&buf[..PTP_CONTAINER_INFO_SIZE])?;
         trace!("container {:?}", cinfo);
 
         // no payload? we're done
@@ -517,7 +518,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
         // response didn't fit into our original buf? read the rest
         // or if our original read were satisfied exactly, so there is still a ZLP to read
-        if payload.len() < cinfo.payload_len || buf.len() == unintialized_buf.len() {
+        if payload.len() < cinfo.payload_len || buf.len() == BUF_SIZE {
             unsafe {
                 let p = payload.as_mut_ptr().offset(payload.len() as isize);
                 let pslice = slice::from_raw_parts_mut(p, payload.capacity() - payload.len());
@@ -540,10 +541,6 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         &self,
         timeout: Duration,
     ) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
-        // buf is stack allocated and intended to be large enough to accomodate most
-        // cmd/ctrl data (ie, not media) without allocating. payload handling below
-        // deals with larger media responses. mark it as uninitalized to avoid paying
-        // for zeroing out 8k of memory, since rust doesn't know what libusb does with this memory.
         let mut unintialized_buf: [u8; 24] = [0u8; 24];
         let buf = {
             let n = self
