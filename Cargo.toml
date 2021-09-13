@@ -10,8 +10,8 @@ homepage = "https://github.com/CUAir/rust-ptp"
 repository = "https://github.com/CUAir/rust-ptp"
 
 [dependencies]
-rusb = "0.8"
-byteorder = "1.3"
+rusb = "0.9"
+byteorder = "1.4"
 log = "0.4"
 num-derive = "0.3"
 num-traits = "0.2"
