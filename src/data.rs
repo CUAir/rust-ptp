@@ -339,19 +339,19 @@ impl LowerHex for PtpData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PtpData::UNDEF => write!(f, "UNDEF"),
-            PtpData::INT8(v) => write!(f, "INT8({:#02x})", v),
-            PtpData::UINT8(v) => write!(f, "UINT8({:#02x})", v),
-            PtpData::INT16(v) => write!(f, "INT16({:#04x})", v),
-            PtpData::UINT16(v) => write!(f, "UINT16({:#04x})", v),
-            PtpData::INT32(v) => write!(f, "INT32({:#08x})", v),
-            PtpData::UINT32(v) => write!(f, "UINT32({:#08x})", v),
-            PtpData::INT64(v) => write!(f, "INT64({:#016x})", v),
-            PtpData::UINT64(v) => write!(f, "UINT64({:#016x})", v),
+            PtpData::INT8(v) => write!(f, "INT8({:#04x})", v),
+            PtpData::UINT8(v) => write!(f, "UINT8({:#04x})", v),
+            PtpData::INT16(v) => write!(f, "INT16({:#06x})", v),
+            PtpData::UINT16(v) => write!(f, "UINT16({:#06x})", v),
+            PtpData::INT32(v) => write!(f, "INT32({:#010x})", v),
+            PtpData::UINT32(v) => write!(f, "UINT32({:#010x})", v),
+            PtpData::INT64(v) => write!(f, "INT64({:#018x})", v),
+            PtpData::UINT64(v) => write!(f, "UINT64({:#018x})", v),
             PtpData::INT128((h, l)) => {
-                write!(f, "INT128({:#032x})", ((*h as i128) << 64) | (*l as i128))
+                write!(f, "INT128({:#034x})", ((*h as i128) << 64) | (*l as i128))
             }
             PtpData::UINT128((h, l)) => {
-                write!(f, "UINT128({:#032x})", ((*h as u128) << 64) | (*l as u128))
+                write!(f, "UINT128({:#034x})", ((*h as u128) << 64) | (*l as u128))
             }
             PtpData::AINT8(v) => {
                 write!(f, "AINT8(")?;
@@ -433,19 +433,19 @@ impl UpperHex for PtpData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PtpData::UNDEF => write!(f, "UNDEF"),
-            PtpData::INT8(v) => write!(f, "INT8({:#02X})", v),
-            PtpData::UINT8(v) => write!(f, "UINT8({:#02X})", v),
-            PtpData::INT16(v) => write!(f, "INT16({:#04X})", v),
-            PtpData::UINT16(v) => write!(f, "UINT16({:#04X})", v),
-            PtpData::INT32(v) => write!(f, "INT32({:#08X})", v),
-            PtpData::UINT32(v) => write!(f, "UINT32({:#08X})", v),
-            PtpData::INT64(v) => write!(f, "INT64({:#016X})", v),
-            PtpData::UINT64(v) => write!(f, "UINT64({:#016X})", v),
+            PtpData::INT8(v) => write!(f, "INT8({:#04x})", v),
+            PtpData::UINT8(v) => write!(f, "UINT8({:#04x})", v),
+            PtpData::INT16(v) => write!(f, "INT16({:#06x})", v),
+            PtpData::UINT16(v) => write!(f, "UINT16({:#06x})", v),
+            PtpData::INT32(v) => write!(f, "INT32({:#010x})", v),
+            PtpData::UINT32(v) => write!(f, "UINT32({:#010x})", v),
+            PtpData::INT64(v) => write!(f, "INT64({:#018x})", v),
+            PtpData::UINT64(v) => write!(f, "UINT64({:#018x})", v),
             PtpData::INT128((h, l)) => {
-                write!(f, "INT128({:#032X})", ((*h as i128) << 64) | (*l as i128))
+                write!(f, "INT128({:#034x})", ((*h as i128) << 64) | (*l as i128))
             }
             PtpData::UINT128((h, l)) => {
-                write!(f, "UINT128({:#032X})", ((*h as u128) << 64) | (*l as u128))
+                write!(f, "UINT128({:#034x})", ((*h as u128) << 64) | (*l as u128))
             }
             PtpData::AINT8(v) => {
                 write!(f, "AINT8(")?;
