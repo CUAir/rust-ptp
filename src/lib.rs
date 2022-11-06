@@ -31,7 +31,7 @@ pub use crate::storage::*;
 #[derive(Debug, Clone, Copy, PartialEq, FromPrimitive)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 #[repr(u16)]
-pub enum PtpContainerType {
+pub enum ContainerType {
     Command = 1,
     Data = 2,
     Response = 3,
@@ -72,7 +72,7 @@ pub enum Error {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct PtpDeviceInfo {
+pub struct DeviceInfo {
     pub version: u16,
     pub vendor_ex_id: u32,
     pub vendor_ex_version: u16,
@@ -89,11 +89,11 @@ pub struct PtpDeviceInfo {
     pub serial_number: String,
 }
 
-impl PtpDeviceInfo {
-    pub fn decode(buf: &[u8]) -> Result<PtpDeviceInfo, Error> {
+impl DeviceInfo {
+    pub fn decode(buf: &[u8]) -> Result<DeviceInfo, Error> {
         let mut cur = Cursor::new(buf);
 
-        Ok(PtpDeviceInfo {
+        Ok(DeviceInfo {
             version: cur.read_ptp_u16()?,
             vendor_ex_id: cur.read_ptp_u32()?,
             vendor_ex_version: cur.read_ptp_u16()?,
@@ -114,7 +114,7 @@ impl PtpDeviceInfo {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct PtpObjectInfo {
+pub struct ObjectInfo {
     pub storage_id: u32,
     pub object_format: ObjectFormatCode,
     pub protection_status: u16,
@@ -136,11 +136,11 @@ pub struct PtpObjectInfo {
     pub keywords: String,
 }
 
-impl PtpObjectInfo {
-    pub fn decode(buf: &[u8]) -> Result<PtpObjectInfo, Error> {
+impl ObjectInfo {
+    pub fn decode(buf: &[u8]) -> Result<ObjectInfo, Error> {
         let mut cur = Cursor::new(buf);
 
-        Ok(PtpObjectInfo {
+        Ok(ObjectInfo {
             storage_id: cur.read_ptp_u32()?,
             object_format: ObjectFormatCode::from_u16(cur.read_ptp_u16()?)
                 .ok_or(Error::BadObjectFormat)?,
@@ -169,7 +169,7 @@ impl PtpObjectInfo {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct PtpStorageInfo {
+pub struct StorageInfo {
     pub storage_type: StorageType,
     pub filesystem_type: FilesystemType,
     pub access_capability: AccessType,
@@ -180,9 +180,9 @@ pub struct PtpStorageInfo {
     pub volume_label: String,
 }
 
-impl PtpStorageInfo {
-    pub fn decode<T: PtpRead>(cur: &mut T) -> Result<PtpStorageInfo, Error> {
-        Ok(PtpStorageInfo {
+impl StorageInfo {
+    pub fn decode<T: PtpRead>(cur: &mut T) -> Result<StorageInfo, Error> {
+        Ok(StorageInfo {
             storage_type: StorageType::from_u16(cur.read_ptp_u16()?).unwrap(),
             filesystem_type: FilesystemType::from_u16(cur.read_ptp_u16()?).unwrap(),
             access_capability: AccessType::from_u16(cur.read_ptp_u16()?).unwrap(),
@@ -197,34 +197,34 @@ impl PtpStorageInfo {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum PtpFormData {
+pub enum FormData {
     None,
     Range {
-        min_value: PtpData,
-        max_value: PtpData,
-        step: PtpData,
+        min_value: Data,
+        max_value: Data,
+        step: Data,
     },
     Enumeration {
-        array: Vec<PtpData>,
+        array: Vec<Data>,
     },
 }
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct PtpPropInfo {
+pub struct PropInfo {
     pub property_code: u16,
     pub data_type: u16,
     pub get_set: u8,
     pub is_enable: u8,
-    pub factory_default: PtpData,
-    pub current: PtpData,
-    pub form: PtpFormData,
+    pub factory_default: Data,
+    pub current: Data,
+    pub form: FormData,
 }
 
-impl PtpPropInfo {
-    pub fn decode<T: PtpRead>(cur: &mut T) -> Result<PtpPropInfo, Error> {
+impl PropInfo {
+    pub fn decode<T: PtpRead>(cur: &mut T) -> Result<PropInfo, Error> {
         let data_type;
-        Ok(PtpPropInfo {
+        Ok(PropInfo {
             property_code: cur.read_u16::<LittleEndian>()?,
             data_type: {
                 data_type = cur.read_u16::<LittleEndian>()?;
@@ -232,27 +232,27 @@ impl PtpPropInfo {
             },
             get_set: cur.read_u8()?,
             is_enable: cur.read_u8()?,
-            factory_default: PtpData::read_type(data_type, cur)?,
-            current: PtpData::read_type(data_type, cur)?,
+            factory_default: Data::read_type(data_type, cur)?,
+            current: Data::read_type(data_type, cur)?,
             form: {
                 match cur.read_u8()? {
                     // 0x00 => PtpFormData::None,
-                    0x01 => PtpFormData::Range {
-                        min_value: PtpData::read_type(data_type, cur)?,
-                        max_value: PtpData::read_type(data_type, cur)?,
-                        step: PtpData::read_type(data_type, cur)?,
+                    0x01 => FormData::Range {
+                        min_value: Data::read_type(data_type, cur)?,
+                        max_value: Data::read_type(data_type, cur)?,
+                        step: Data::read_type(data_type, cur)?,
                     },
-                    0x02 => PtpFormData::Enumeration {
+                    0x02 => FormData::Enumeration {
                         array: {
                             let len = cur.read_u16::<LittleEndian>()? as usize;
                             let mut arr = Vec::with_capacity(len);
                             for _ in 0..len {
-                                arr.push(PtpData::read_type(data_type, cur)?);
+                                arr.push(Data::read_type(data_type, cur)?);
                             }
                             arr
                         },
                     },
-                    _ => PtpFormData::None,
+                    _ => FormData::None,
                 }
             },
         })
@@ -261,12 +261,12 @@ impl PtpPropInfo {
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-struct PtpContainerInfo {
+struct ContainerInfo {
     /// payload len in bytes, usually relevant for data phases
     payload_len: usize,
 
     /// Container kind
-    kind: PtpContainerType,
+    kind: ContainerType,
 
     /// StandardCommandCode or ResponseCode, depending on 'kind'
     code: u16,
@@ -277,16 +277,16 @@ struct PtpContainerInfo {
 
 const PTP_CONTAINER_INFO_SIZE: usize = 12;
 
-impl PtpContainerInfo {
-    pub fn parse<R: ReadBytesExt>(mut r: R) -> Result<PtpContainerInfo, Error> {
+impl ContainerInfo {
+    pub fn parse<R: ReadBytesExt>(mut r: R) -> Result<ContainerInfo, Error> {
         let len = r.read_u32::<LittleEndian>()?;
         let kind_u16 = r.read_u16::<LittleEndian>()?;
-        let kind = PtpContainerType::from_u16(kind_u16)
+        let kind = ContainerType::from_u16(kind_u16)
             .ok_or_else(|| Error::Malformed(format!("Invalid message type {:x}.", kind_u16)))?;
         let code = r.read_u16::<LittleEndian>()?;
         let tid = r.read_u32::<LittleEndian>()?;
 
-        Ok(PtpContainerInfo {
+        Ok(ContainerInfo {
             payload_len: len as usize - PTP_CONTAINER_INFO_SIZE,
             kind,
             code,
@@ -300,7 +300,7 @@ impl PtpContainerInfo {
     }
 }
 
-pub struct PtpCamera<C: libusb::UsbContext> {
+pub struct Camera<C: libusb::UsbContext> {
     iface: u8,
     ep_in: u8,
     ep_out: u8,
@@ -309,8 +309,8 @@ pub struct PtpCamera<C: libusb::UsbContext> {
     handle: libusb::DeviceHandle<C>,
 }
 
-impl<C: libusb::UsbContext> PtpCamera<C> {
-    pub fn new(mut handle: libusb::DeviceHandle<C>) -> Result<PtpCamera<C>, Error> {
+impl<C: libusb::UsbContext> Camera<C> {
+    pub fn new(mut handle: libusb::DeviceHandle<C>) -> Result<Camera<C>, Error> {
         let config_desc = handle.device().active_config_descriptor()?;
 
         let interface_desc = config_desc
@@ -335,7 +335,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
                 .ok_or(libusb::Error::NotFound)
         };
 
-        Ok(PtpCamera {
+        Ok(Camera {
             iface: interface_desc.interface_number(),
             ep_in: find_endpoint(libusb::Direction::In, libusb::TransferType::Bulk)?,
             ep_out: find_endpoint(libusb::Direction::Out, libusb::TransferType::Bulk)?,
@@ -347,7 +347,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
     /// Queries the PTP camera for an event. Returns Ok(None) if the operation
     /// times out without receiving an event.
-    pub fn event(&self, timeout: Option<Duration>) -> Result<Option<PtpEvent>, Error> {
+    pub fn event(&self, timeout: Option<Duration>) -> Result<Option<Event>, Error> {
         // timeout of 0 means unlimited timeout.
         let timeout = timeout.unwrap_or(Duration::new(0, 0));
 
@@ -376,8 +376,8 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             // }
 
             match container.kind {
-                PtpContainerType::Event => {
-                    return PtpEvent::new(container.code, payload.as_ref()).map(|p| Some(p));
+                ContainerType::Event => {
+                    return Event::new(container.code, payload.as_ref()).map(|p| Some(p));
                 }
                 _ => {}
             }
@@ -417,7 +417,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         }
 
         self.write_txn_phase(
-            PtpContainerType::Command,
+            ContainerType::Command,
             code,
             tid,
             &request_payload,
@@ -425,7 +425,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         )?;
 
         if let Some(data) = data {
-            self.write_txn_phase(PtpContainerType::Data, code, tid, data, timeout)?;
+            self.write_txn_phase(ContainerType::Data, code, tid, data, timeout)?;
         }
 
         // request phase is followed by data phase (optional) and response phase.
@@ -442,10 +442,10 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             }
 
             match container.kind {
-                PtpContainerType::Data => {
+                ContainerType::Data => {
                     data_phase_payload = payload;
                 }
-                PtpContainerType::Response => {
+                ContainerType::Response => {
                     let code = ResponseCode::from_u16(container.code).unwrap();
                     if code != ResponseCode::Standard(StandardResponseCode::Ok) {
                         return Err(Error::Response(code));
@@ -459,7 +459,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
     fn write_txn_phase(
         &self,
-        kind: PtpContainerType,
+        kind: ContainerType,
         code: CommandCode,
         tid: u32,
         payload: &[u8],
@@ -488,7 +488,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(())
     }
 
-    fn read_txn_phase_bulk(&self, timeout: Duration) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
+    fn read_txn_phase_bulk(&self, timeout: Duration) -> Result<(ContainerInfo, Vec<u8>), Error> {
         // buf is stack allocated and intended to be large enough to accomodate
         // most cmd/ctrl data (ie, not media) without allocating. payload
         // handling below deals with larger media responses. mark it as
@@ -504,7 +504,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         let buf = unsafe { buf.assume_init() };
         let buf = &buf[..n];
 
-        let cinfo = PtpContainerInfo::parse(&buf[..PTP_CONTAINER_INFO_SIZE])?;
+        let cinfo = ContainerInfo::parse(&buf[..PTP_CONTAINER_INFO_SIZE])?;
         trace!("container {:?}", cinfo);
 
         // no payload? we're done
@@ -540,7 +540,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
     fn read_txn_phase_interrupt(
         &self,
         timeout: Duration,
-    ) -> Result<(PtpContainerInfo, Vec<u8>), Error> {
+    ) -> Result<(ContainerInfo, Vec<u8>), Error> {
         let mut unintialized_buf: [u8; 24] = [0u8; 24];
         let buf = {
             let n = self
@@ -549,7 +549,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             &unintialized_buf[..n]
         };
 
-        let cinfo = PtpContainerInfo::parse(&buf[..])?;
+        let cinfo = ContainerInfo::parse(&buf[..])?;
         trace!("container {:?}", cinfo);
 
         // no payload? we're done
@@ -570,14 +570,14 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         &self,
         handle: ObjectHandle,
         timeout: Option<Duration>,
-    ) -> Result<PtpObjectInfo, Error> {
+    ) -> Result<ObjectInfo, Error> {
         let data = self.command(
             StandardCommandCode::GetObjectInfo.into(),
             &[handle.0],
             None,
             timeout,
         )?;
-        Ok(PtpObjectInfo::decode(&data)?)
+        Ok(ObjectInfo::decode(&data)?)
     }
 
     pub fn get_object(
@@ -653,7 +653,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         &self,
         storage_id: StorageId,
         timeout: Option<Duration>,
-    ) -> Result<PtpStorageInfo, Error> {
+    ) -> Result<StorageInfo, Error> {
         let data = self.command(
             StandardCommandCode::GetStorageInfo.into(),
             &[storage_id.0],
@@ -663,7 +663,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 
         // Parse ObjectHandleArrray
         let mut cur = Cursor::new(data);
-        let res = PtpStorageInfo::decode(&mut cur)?;
+        let res = StorageInfo::decode(&mut cur)?;
         cur.expect_end()?;
 
         Ok(res)
@@ -685,7 +685,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
         Ok(value.into_iter().map(|sid| StorageId(sid)).collect())
     }
 
-    pub fn get_device_info(&self, timeout: Option<Duration>) -> Result<PtpDeviceInfo, Error> {
+    pub fn get_device_info(&self, timeout: Option<Duration>) -> Result<DeviceInfo, Error> {
         let data = self.command(
             StandardCommandCode::GetDeviceInfo.into(),
             &[0, 0, 0],
@@ -693,7 +693,7 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
             timeout,
         )?;
 
-        let device_info = PtpDeviceInfo::decode(&data)?;
+        let device_info = DeviceInfo::decode(&data)?;
         debug!("device_info {:?}", device_info);
         Ok(device_info)
     }
@@ -725,14 +725,14 @@ impl<C: libusb::UsbContext> PtpCamera<C> {
 }
 
 #[derive(Debug, Clone)]
-pub struct PtpObjectTree {
+pub struct ObjectTree {
     pub handle: ObjectHandle,
-    pub info: PtpObjectInfo,
-    pub children: Option<Vec<PtpObjectTree>>,
+    pub info: ObjectInfo,
+    pub children: Option<Vec<ObjectTree>>,
 }
 
-impl PtpObjectTree {
-    pub fn walk(&self) -> Vec<(String, PtpObjectTree)> {
+impl ObjectTree {
+    pub fn walk(&self) -> Vec<(String, ObjectTree)> {
         let mut input = vec![("".to_owned(), self.clone())];
         let mut output = vec![];
 

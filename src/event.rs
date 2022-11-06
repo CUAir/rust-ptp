@@ -102,14 +102,14 @@ impl LowerHex for StandardEventCode {
 
 #[derive(Debug, Clone, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub struct PtpEvent {
+pub struct Event {
     pub code: EventCode,
     pub params: [Option<u8>; 3],
 }
 
-impl PtpEvent {
+impl Event {
     pub fn new(code: u16, params: &[u8]) -> Result<Self, Error> {
-        Ok(PtpEvent {
+        Ok(Event {
             code: EventCode::from_u16(code).ok_or(Error::BadEventCode)?,
             params: [
                 params.get(0).copied(),

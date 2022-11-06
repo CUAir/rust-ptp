@@ -141,7 +141,7 @@ impl<T: AsRef<[u8]>> PtpRead for Cursor<T> {
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
-pub enum PtpData {
+pub enum Data {
     UNDEF,
     INT8(i8),
     UINT8(u8),
@@ -166,9 +166,9 @@ pub enum PtpData {
     STR(String),
 }
 
-impl PtpData {
+impl Data {
     pub fn encode(&self) -> Vec<u8> {
-        use self::PtpData::*;
+        use self::Data::*;
         let mut out = vec![];
         match self {
             // UNDEF => {},
@@ -280,8 +280,8 @@ impl PtpData {
         out
     }
 
-    pub fn read_type<T: PtpRead>(kind: u16, reader: &mut T) -> Result<PtpData, Error> {
-        use self::PtpData::*;
+    pub fn read_type<T: PtpRead>(kind: u16, reader: &mut T) -> Result<Data, Error> {
+        use self::Data::*;
         Ok(match kind {
             // 0x0000 => UNDEF,
             0x0001 => INT8(reader.read_ptp_i8()?),
@@ -310,274 +310,274 @@ impl PtpData {
     }
 }
 
-impl ToPrimitive for PtpData {
+impl ToPrimitive for Data {
     fn to_i64(&self) -> Option<i64> {
         match self {
-            PtpData::INT8(v) => Some(*v as i64),
-            PtpData::UINT8(v) => Some(*v as i64),
-            PtpData::INT16(v) => Some(*v as i64),
-            PtpData::UINT16(v) => Some(*v as i64),
-            PtpData::INT32(v) => Some(*v as i64),
-            PtpData::UINT32(v) => Some(*v as i64),
-            PtpData::INT64(v) => Some(*v as i64),
+            Data::INT8(v) => Some(*v as i64),
+            Data::UINT8(v) => Some(*v as i64),
+            Data::INT16(v) => Some(*v as i64),
+            Data::UINT16(v) => Some(*v as i64),
+            Data::INT32(v) => Some(*v as i64),
+            Data::UINT32(v) => Some(*v as i64),
+            Data::INT64(v) => Some(*v as i64),
             _ => None,
         }
     }
 
     fn to_u64(&self) -> Option<u64> {
         match self {
-            PtpData::UINT8(v) => Some(*v as u64),
-            PtpData::UINT16(v) => Some(*v as u64),
-            PtpData::UINT32(v) => Some(*v as u64),
-            PtpData::UINT64(v) => Some(*v as u64),
+            Data::UINT8(v) => Some(*v as u64),
+            Data::UINT16(v) => Some(*v as u64),
+            Data::UINT32(v) => Some(*v as u64),
+            Data::UINT64(v) => Some(*v as u64),
             _ => None,
         }
     }
 }
 
-impl LowerHex for PtpData {
+impl LowerHex for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PtpData::UNDEF => write!(f, "UNDEF"),
-            PtpData::INT8(v) => write!(f, "INT8({:#04x})", v),
-            PtpData::UINT8(v) => write!(f, "UINT8({:#04x})", v),
-            PtpData::INT16(v) => write!(f, "INT16({:#06x})", v),
-            PtpData::UINT16(v) => write!(f, "UINT16({:#06x})", v),
-            PtpData::INT32(v) => write!(f, "INT32({:#010x})", v),
-            PtpData::UINT32(v) => write!(f, "UINT32({:#010x})", v),
-            PtpData::INT64(v) => write!(f, "INT64({:#018x})", v),
-            PtpData::UINT64(v) => write!(f, "UINT64({:#018x})", v),
-            PtpData::INT128((h, l)) => {
+            Data::UNDEF => write!(f, "UNDEF"),
+            Data::INT8(v) => write!(f, "INT8({:#04x})", v),
+            Data::UINT8(v) => write!(f, "UINT8({:#04x})", v),
+            Data::INT16(v) => write!(f, "INT16({:#06x})", v),
+            Data::UINT16(v) => write!(f, "UINT16({:#06x})", v),
+            Data::INT32(v) => write!(f, "INT32({:#010x})", v),
+            Data::UINT32(v) => write!(f, "UINT32({:#010x})", v),
+            Data::INT64(v) => write!(f, "INT64({:#018x})", v),
+            Data::UINT64(v) => write!(f, "UINT64({:#018x})", v),
+            Data::INT128((h, l)) => {
                 write!(f, "INT128({:#034x})", ((*h as i128) << 64) | (*l as i128))
             }
-            PtpData::UINT128((h, l)) => {
+            Data::UINT128((h, l)) => {
                 write!(f, "UINT128({:#034x})", ((*h as u128) << 64) | (*l as u128))
             }
-            PtpData::AINT8(v) => {
+            Data::AINT8(v) => {
                 write!(f, "AINT8(")?;
                 for i in &v[..] {
                     write!(f, "{:02x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT8(v) => {
+            Data::AUINT8(v) => {
                 write!(f, "AUINT8(")?;
                 for i in &v[..] {
                     write!(f, "{:02x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT16(v) => {
+            Data::AINT16(v) => {
                 write!(f, "AINT16(")?;
                 for i in &v[..] {
                     write!(f, "{:04x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT16(v) => {
+            Data::AUINT16(v) => {
                 write!(f, "AUINT16(")?;
                 for i in &v[..] {
                     write!(f, "{:04x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT32(v) => {
+            Data::AINT32(v) => {
                 write!(f, "AINT32(")?;
                 for i in &v[..] {
                     write!(f, "{:08x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT32(v) => {
+            Data::AUINT32(v) => {
                 write!(f, "AUINT32(")?;
                 for i in &v[..] {
                     write!(f, "{:08x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT64(v) => {
+            Data::AINT64(v) => {
                 write!(f, "AINT64(")?;
                 for i in &v[..] {
                     write!(f, "{:016x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT64(v) => {
+            Data::AUINT64(v) => {
                 write!(f, "AUINT64(")?;
                 for i in &v[..] {
                     write!(f, "{:016x}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT128(v) => {
+            Data::AINT128(v) => {
                 write!(f, "AINT128(")?;
                 for (h, l) in &v[..] {
                     write!(f, "{:032x}", ((*h as i128) << 64) | (*l as i128))?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT128(v) => {
+            Data::AUINT128(v) => {
                 write!(f, "AUINT128(")?;
                 for (h, l) in &v[..] {
                     write!(f, "{:032x}", ((*h as u128) << 64) | (*l as u128))?;
                 }
                 write!(f, ")")
             }
-            PtpData::STR(v) => write!(f, "STR({:?})", v),
+            Data::STR(v) => write!(f, "STR({:?})", v),
         }
     }
 }
 
 
-impl UpperHex for PtpData {
+impl UpperHex for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            PtpData::UNDEF => write!(f, "UNDEF"),
-            PtpData::INT8(v) => write!(f, "INT8({:#04x})", v),
-            PtpData::UINT8(v) => write!(f, "UINT8({:#04x})", v),
-            PtpData::INT16(v) => write!(f, "INT16({:#06x})", v),
-            PtpData::UINT16(v) => write!(f, "UINT16({:#06x})", v),
-            PtpData::INT32(v) => write!(f, "INT32({:#010x})", v),
-            PtpData::UINT32(v) => write!(f, "UINT32({:#010x})", v),
-            PtpData::INT64(v) => write!(f, "INT64({:#018x})", v),
-            PtpData::UINT64(v) => write!(f, "UINT64({:#018x})", v),
-            PtpData::INT128((h, l)) => {
+            Data::UNDEF => write!(f, "UNDEF"),
+            Data::INT8(v) => write!(f, "INT8({:#04x})", v),
+            Data::UINT8(v) => write!(f, "UINT8({:#04x})", v),
+            Data::INT16(v) => write!(f, "INT16({:#06x})", v),
+            Data::UINT16(v) => write!(f, "UINT16({:#06x})", v),
+            Data::INT32(v) => write!(f, "INT32({:#010x})", v),
+            Data::UINT32(v) => write!(f, "UINT32({:#010x})", v),
+            Data::INT64(v) => write!(f, "INT64({:#018x})", v),
+            Data::UINT64(v) => write!(f, "UINT64({:#018x})", v),
+            Data::INT128((h, l)) => {
                 write!(f, "INT128({:#034x})", ((*h as i128) << 64) | (*l as i128))
             }
-            PtpData::UINT128((h, l)) => {
+            Data::UINT128((h, l)) => {
                 write!(f, "UINT128({:#034x})", ((*h as u128) << 64) | (*l as u128))
             }
-            PtpData::AINT8(v) => {
+            Data::AINT8(v) => {
                 write!(f, "AINT8(")?;
                 for i in &v[..] {
                     write!(f, "{:02X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT8(v) => {
+            Data::AUINT8(v) => {
                 write!(f, "AUINT8(")?;
                 for i in &v[..] {
                     write!(f, "{:02X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT16(v) => {
+            Data::AINT16(v) => {
                 write!(f, "AINT16(")?;
                 for i in &v[..] {
                     write!(f, "{:04X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT16(v) => {
+            Data::AUINT16(v) => {
                 write!(f, "AUINT16(")?;
                 for i in &v[..] {
                     write!(f, "{:04X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT32(v) => {
+            Data::AINT32(v) => {
                 write!(f, "AINT32(")?;
                 for i in &v[..] {
                     write!(f, "{:08X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT32(v) => {
+            Data::AUINT32(v) => {
                 write!(f, "AUINT32(")?;
                 for i in &v[..] {
                     write!(f, "{:08X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT64(v) => {
+            Data::AINT64(v) => {
                 write!(f, "AINT64(")?;
                 for i in &v[..] {
                     write!(f, "{:016X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT64(v) => {
+            Data::AUINT64(v) => {
                 write!(f, "AUINT64(")?;
                 for i in &v[..] {
                     write!(f, "{:016X}", i)?;
                 }
                 write!(f, ")")
             }
-            PtpData::AINT128(v) => {
+            Data::AINT128(v) => {
                 write!(f, "AINT128(")?;
                 for (h, l) in &v[..] {
                     write!(f, "{:032X}", ((*h as i128) << 64) | (*l as i128))?;
                 }
                 write!(f, ")")
             }
-            PtpData::AUINT128(v) => {
+            Data::AUINT128(v) => {
                 write!(f, "AUINT128(")?;
                 for (h, l) in &v[..] {
                     write!(f, "{:032X}", ((*h as u128) << 64) | (*l as u128))?;
                 }
                 write!(f, ")")
             }
-            PtpData::STR(v) => write!(f, "STR({:?})", v),
+            Data::STR(v) => write!(f, "STR({:?})", v),
         }
     }
 }
 
-impl<'a> From<i8> for PtpData {
+impl<'a> From<i8> for Data {
     fn from(value: i8) -> Self {
-        PtpData::INT8(value)
+        Data::INT8(value)
     }
 }
 
-impl<'a> From<u8> for PtpData {
+impl<'a> From<u8> for Data {
     fn from(value: u8) -> Self {
-        PtpData::UINT8(value)
+        Data::UINT8(value)
     }
 }
 
-impl<'a> From<i16> for PtpData {
+impl<'a> From<i16> for Data {
     fn from(value: i16) -> Self {
-        PtpData::INT16(value)
+        Data::INT16(value)
     }
 }
 
-impl<'a> From<u16> for PtpData {
+impl<'a> From<u16> for Data {
     fn from(value: u16) -> Self {
-        PtpData::UINT16(value)
+        Data::UINT16(value)
     }
 }
 
-impl<'a> From<i32> for PtpData {
+impl<'a> From<i32> for Data {
     fn from(value: i32) -> Self {
-        PtpData::INT32(value)
+        Data::INT32(value)
     }
 }
 
-impl<'a> From<u32> for PtpData {
+impl<'a> From<u32> for Data {
     fn from(value: u32) -> Self {
-        PtpData::UINT32(value)
+        Data::UINT32(value)
     }
 }
 
-impl<'a> From<i64> for PtpData {
+impl<'a> From<i64> for Data {
     fn from(value: i64) -> Self {
-        PtpData::INT64(value)
+        Data::INT64(value)
     }
 }
 
-impl<'a> From<u64> for PtpData {
+impl<'a> From<u64> for Data {
     fn from(value: u64) -> Self {
-        PtpData::UINT64(value)
+        Data::UINT64(value)
     }
 }
 
-impl<'a> From<&'a str> for PtpData {
+impl<'a> From<&'a str> for Data {
     fn from(value: &'a str) -> Self {
-        PtpData::STR(value.to_owned())
+        Data::STR(value.to_owned())
     }
 }
 
-impl<'a> From<String> for PtpData {
+impl<'a> From<String> for Data {
     fn from(value: String) -> Self {
-        PtpData::STR(value)
+        Data::STR(value)
     }
 }
