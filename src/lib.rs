@@ -541,12 +541,12 @@ impl<C: libusb::UsbContext> Camera<C> {
         &self,
         timeout: Duration,
     ) -> Result<(ContainerInfo, Vec<u8>), Error> {
-        let mut unintialized_buf: [u8; 24] = [0u8; 24];
+        let mut buf: [u8; 24] = [0u8; 24];
         let buf = {
             let n = self
                 .handle
-                .read_interrupt(self.ep_int, &mut unintialized_buf[..], timeout)?;
-            &unintialized_buf[..n]
+                .read_interrupt(self.ep_int, &mut buf[..], timeout)?;
+            &buf[..n]
         };
 
         let cinfo = ContainerInfo::parse(&buf[..])?;

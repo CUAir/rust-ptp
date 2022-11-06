@@ -3,8 +3,8 @@ use std::fmt::{self, LowerHex};
 #[cfg(feature = "serde")]
 use serde::Serialize;
 
-use num_traits::{FromPrimitive, ToPrimitive};
 use num_derive::{FromPrimitive, ToPrimitive};
+use num_traits::{FromPrimitive, ToPrimitive};
 
 use crate::Error;
 
@@ -104,18 +104,23 @@ impl LowerHex for StandardEventCode {
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Event {
     pub code: EventCode,
-    pub params: [Option<u8>; 3],
+    pub params: Vec<u32>,
 }
 
 impl Event {
     pub fn new(code: u16, params: &[u8]) -> Result<Self, Error> {
         Ok(Event {
             code: EventCode::from_u16(code).ok_or(Error::BadEventCode)?,
-            params: [
-                params.get(0).copied(),
-                params.get(1).copied(),
-                params.get(2).copied(),
-            ],
+            params: params
+                .chunks_exact(4)
+                .map(|c| {
+                    // TODO: simplify this code when feature(array_chunks) stabilizes
+                    // https://github.com/rust-lang/rust/issues/74985
+                    let mut b = [0u8; 4];
+                    b.copy_from_slice(c);
+                    u32::from_be_bytes(b)
+                })
+                .collect(),
         })
     }
 }
