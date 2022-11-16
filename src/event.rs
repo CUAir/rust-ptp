@@ -118,7 +118,7 @@ impl Event {
                     // https://github.com/rust-lang/rust/issues/74985
                     let mut b = [0u8; 4];
                     b.copy_from_slice(c);
-                    u32::from_be_bytes(b)
+                    u32::from_le_bytes(b)
                 })
                 .collect(),
         })
