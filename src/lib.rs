@@ -514,7 +514,7 @@ impl<C: libusb::UsbContext> Camera<C> {
         // or if our original read were satisfied exactly, so there is still a ZLP to read
         if payload.len() < cinfo.payload_len || buf.len() == BUF_SIZE {
             // read in 1MB blocks
-            while payload.capacity() - payload.len() > 0 {
+            while payload.capacity() - payload.len() > 1 {
                 unsafe {
                     let p = payload.as_mut_ptr().offset(payload.len() as isize);
                     let pslice = slice::from_raw_parts_mut(
