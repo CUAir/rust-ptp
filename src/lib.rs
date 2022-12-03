@@ -416,13 +416,7 @@ impl<C: libusb::UsbContext> Camera<C> {
             request_payload.write_u32::<LittleEndian>(*p).ok();
         }
 
-        self.write_txn_phase(
-            ContainerType::Command,
-            code,
-            tid,
-            &request_payload,
-            timeout,
-        )?;
+        self.write_txn_phase(ContainerType::Command, code, tid, &request_payload, timeout)?;
 
         if let Some(data) = data {
             self.write_txn_phase(ContainerType::Data, code, tid, data, timeout)?;
@@ -519,18 +513,24 @@ impl<C: libusb::UsbContext> Camera<C> {
         // response didn't fit into our original buf? read the rest
         // or if our original read were satisfied exactly, so there is still a ZLP to read
         if payload.len() < cinfo.payload_len || buf.len() == BUF_SIZE {
-            unsafe {
-                let p = payload.as_mut_ptr().offset(payload.len() as isize);
-                let pslice = slice::from_raw_parts_mut(p, payload.capacity() - payload.len());
-                let n = self.handle.read_bulk(self.ep_in, pslice, timeout)?;
-                let sz = payload.len();
-                payload.set_len(sz + n);
-                trace!(
-                    "  bulk rx {}, ({}/{})",
-                    n,
-                    payload.len(),
-                    payload.capacity()
-                );
+            // read in 1MB blocks
+            while payload.capacity() - payload.len() > 0 {
+                unsafe {
+                    let p = payload.as_mut_ptr().offset(payload.len() as isize);
+                    let pslice = slice::from_raw_parts_mut(
+                        p,
+                        min(payload.capacity() - payload.len(), 1048576),
+                    );
+                    let n = self.handle.read_bulk(self.ep_in, pslice, timeout)?;
+                    let sz = payload.len();
+                    payload.set_len(sz + n);
+                    trace!(
+                        "  bulk rx {}, ({}/{})",
+                        n,
+                        payload.len(),
+                        payload.capacity()
+                    );
+                }
             }
         }
 
