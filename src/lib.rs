@@ -310,7 +310,7 @@ pub struct Camera<C: libusb::UsbContext> {
 }
 
 impl<C: libusb::UsbContext> Camera<C> {
-    pub fn new(mut handle: libusb::DeviceHandle<C>) -> Result<Camera<C>, Error> {
+    pub fn new(handle: libusb::DeviceHandle<C>) -> Result<Camera<C>, Error> {
         let config_desc = handle.device().active_config_descriptor()?;
 
         let interface_desc = config_desc
@@ -532,7 +532,7 @@ impl<C: libusb::UsbContext> Camera<C> {
                     );
 
                     if n < pslice.len() {
-                        break
+                        break;
                     }
                 }
             }
@@ -592,6 +592,21 @@ impl<C: libusb::UsbContext> Camera<C> {
         self.command(
             StandardCommandCode::GetObject.into(),
             &[handle.0],
+            None,
+            timeout,
+        )
+    }
+
+    pub fn get_partial_object(
+        &self,
+        handle: ObjectHandle,
+        offset: u32,
+        len: u32,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<u8>, Error> {
+        self.command(
+            StandardCommandCode::GetPartialObject.into(),
+            &[handle.0, offset, len],
             None,
             timeout,
         )
