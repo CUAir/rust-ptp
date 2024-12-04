@@ -5,7 +5,7 @@ use byteorder;
 use log::{debug, error, trace, warn};
 use num_derive::FromPrimitive;
 use num_traits::{FromPrimitive, ToPrimitive};
-use rusb as libusb;
+use rusb;
 use thiserror::Error;
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -61,9 +61,9 @@ pub enum Error {
     #[error("received an event with no payload")]
     NoEventPayload,
 
-    /// Another libusb error
+    /// Another rusb error
     #[error("a usb error occurred")]
-    Usb(#[from] libusb::Error),
+    Usb(#[from] rusb::Error),
 
     /// Another IO error
     #[error("an I/O error occurred")]
@@ -300,24 +300,24 @@ impl ContainerInfo {
     }
 }
 
-pub struct Camera<C: libusb::UsbContext> {
+pub struct Camera<C: rusb::UsbContext> {
     iface: u8,
     ep_in: u8,
     ep_out: u8,
     ep_int: u8,
     current_tid: std::sync::atomic::AtomicU32,
-    handle: libusb::DeviceHandle<C>,
+    handle: rusb::DeviceHandle<C>,
 }
 
-impl<C: libusb::UsbContext> Camera<C> {
-    pub fn new(handle: libusb::DeviceHandle<C>) -> Result<Camera<C>, Error> {
+impl<C: rusb::UsbContext> Camera<C> {
+    pub fn new(handle: rusb::DeviceHandle<C>) -> Result<Camera<C>, Error> {
         let config_desc = handle.device().active_config_descriptor()?;
 
         let interface_desc = config_desc
             .interfaces()
             .flat_map(|i| i.descriptors())
             .find(|x| x.class_code() == 6)
-            .ok_or(libusb::Error::NotFound)?;
+            .ok_or(rusb::Error::NotFound)?;
 
         debug!("Found interface {}", interface_desc.interface_number());
 
@@ -332,14 +332,14 @@ impl<C: libusb::UsbContext> Camera<C> {
                 .endpoint_descriptors()
                 .find(|ep| ep.direction() == direction && ep.transfer_type() == transfer_type)
                 .map(|x| x.address())
-                .ok_or(libusb::Error::NotFound)
+                .ok_or(rusb::Error::NotFound)
         };
 
         Ok(Camera {
             iface: interface_desc.interface_number(),
-            ep_in: find_endpoint(libusb::Direction::In, libusb::TransferType::Bulk)?,
-            ep_out: find_endpoint(libusb::Direction::Out, libusb::TransferType::Bulk)?,
-            ep_int: find_endpoint(libusb::Direction::In, libusb::TransferType::Interrupt)?,
+            ep_in: find_endpoint(rusb::Direction::In, rusb::TransferType::Bulk)?,
+            ep_out: find_endpoint(rusb::Direction::Out, rusb::TransferType::Bulk)?,
+            ep_int: find_endpoint(rusb::Direction::In, rusb::TransferType::Interrupt)?,
             current_tid: AtomicU32::new(0),
             handle: handle,
         })
@@ -487,7 +487,7 @@ impl<C: libusb::UsbContext> Camera<C> {
         // most cmd/ctrl data (ie, not media) without allocating. payload
         // handling below deals with larger media responses. mark it as
         // uninitalized to avoid paying for zeroing out 8k of memory, since rust
-        // doesn't know what libusb does with this memory.
+        // doesn't know what rusb does with this memory.
 
         const BUF_SIZE: usize = 8192;
 
