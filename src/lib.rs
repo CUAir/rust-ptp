@@ -63,11 +63,11 @@ pub enum Error {
     NoEventPayload,
 
     /// Another rusb error
-    #[error("a usb error occurred")]
+    #[error("a usb error occurred: {0}")]
     Usb(#[from] rusb::Error),
 
     /// Another IO error
-    #[error("an I/O error occurred")]
+    #[error("an i/o error occurred: {0}")]
     Io(#[from] io::Error),
 }
 
