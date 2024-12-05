@@ -11,6 +11,7 @@ use thiserror::Error;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use std::slice;
+use std::sync::Arc;
 use std::time::Duration;
 use std::{cmp::min, mem::MaybeUninit};
 use std::{io, sync::atomic::Ordering};
@@ -306,11 +307,11 @@ pub struct Camera<C: rusb::UsbContext> {
     ep_out: u8,
     ep_int: u8,
     current_tid: std::sync::atomic::AtomicU32,
-    handle: rusb::DeviceHandle<C>,
+    handle: Arc<rusb::DeviceHandle<C>>,
 }
 
 impl<C: rusb::UsbContext> Camera<C> {
-    pub fn new(handle: rusb::DeviceHandle<C>) -> Result<Camera<C>, Error> {
+    pub fn new(handle: Arc<rusb::DeviceHandle<C>>) -> Result<Camera<C>, Error> {
         let config_desc = handle.device().active_config_descriptor()?;
 
         let interface_desc = config_desc
