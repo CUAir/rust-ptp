@@ -10,10 +10,8 @@ use serde::Serialize;
 pub struct ObjectHandle(pub(crate) u32);
 
 impl ObjectHandle {
-    /// Returns an ObjectHandle that represents the "root" of a storage.
-    pub fn root() -> ObjectHandle {
-        ObjectHandle(0xFFFFFFFF)
-    }
+    pub const ROOT: ObjectHandle = ObjectHandle(0xFFFFFFFF);
+    pub const UNSPECIFIED: ObjectHandle = ObjectHandle(0);
 }
 
 impl Into<u32> for ObjectHandle {
