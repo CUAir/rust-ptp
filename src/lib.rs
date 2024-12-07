@@ -166,6 +166,29 @@ impl ObjectInfo {
             keywords: cur.read_ptp_str()?,
         })
     }
+
+    pub fn encode<W: WriteBytesExt>(&self, mut w: W) -> Result<(), Error> {
+        w.write_ptp_u32(self.storage_id)?;
+        w.write_ptp_u16(self.object_format.to_u16().unwrap())?;
+        w.write_ptp_u16(self.protection_status)?;
+        w.write_ptp_u32(self.object_compressed_size)?;
+        w.write_ptp_u16(self.thumb_format.to_u16().unwrap())?;
+        w.write_ptp_u32(self.thumb_compressed_size)?;
+        w.write_ptp_u32(self.thumb_pix_width)?;
+        w.write_ptp_u32(self.thumb_pix_height)?;
+        w.write_ptp_u32(self.image_pix_width)?;
+        w.write_ptp_u32(self.image_pix_height)?;
+        w.write_ptp_u32(self.image_bit_depth)?;
+        w.write_ptp_u32(self.parent_object)?;
+        w.write_ptp_u16(self.association_type.to_u16().unwrap())?;
+        w.write_ptp_u32(self.association_desc)?;
+        w.write_ptp_u32(self.sequence_number)?;
+        w.write_ptp_str(&self.filename)?;
+        w.write_ptp_str(&self.capture_date)?;
+        w.write_ptp_str(&self.modification_date)?;
+        w.write_ptp_str(&self.keywords)?;
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -583,6 +606,45 @@ impl<C: rusb::UsbContext> Device<C> {
             timeout,
         )?;
         Ok(ObjectInfo::decode(&data)?)
+    }
+
+    pub fn send_object_info(
+        &self,
+        handle: StorageId,
+        parent: ObjectHandle,
+        info: ObjectInfo,
+        timeout: Option<Duration>,
+    ) -> Result<ObjectHandle, Error> {
+        let mut data = vec![];
+        info.encode(&mut data)?;
+
+        let data = self.command(
+            StandardCommandCode::SendObjectInfo.into(),
+            &[handle.0, parent.0],
+            Some(&data[..]),
+            timeout,
+        )?;
+
+        let mut cur = Cursor::new(data);
+        // storage ID
+        let _ = cur.read_ptp_u32()?;
+        // parent object handle
+        let _ = cur.read_ptp_u32()?;
+        let object_handle = cur.read_ptp_u32()?;
+        cur.expect_end()?;
+
+        Ok(ObjectHandle(object_handle))
+    }
+
+    pub fn send_object(&self, data: &[u8], timeout: Option<Duration>) -> Result<(), Error> {
+        self.command(
+            StandardCommandCode::SendObject.into(),
+            &[],
+            Some(data),
+            timeout,
+        )?;
+
+        Ok(())
     }
 
     pub fn get_object(

@@ -139,6 +139,77 @@ impl<T: AsRef<[u8]>> PtpRead for Cursor<T> {
     }
 }
 
+pub trait PtpWrite: WriteBytesExt {
+    fn write_ptp_u8(&mut self, val: u8) -> Result<(), Error> {
+        Ok(self.write_u8(val)?)
+    }
+
+    fn write_ptp_i8(&mut self, val: i8) -> Result<(), Error> {
+        Ok(self.write_i8(val)?)
+    }
+
+    fn write_ptp_u16(&mut self, val: u16) -> Result<(), Error> {
+        Ok(self.write_u16::<LittleEndian>(val)?)
+    }
+
+    fn write_ptp_i16(&mut self, val: i16) -> Result<(), Error> {
+        Ok(self.write_i16::<LittleEndian>(val)?)
+    }
+
+    fn write_ptp_u32(&mut self, val: u32) -> Result<(), Error> {
+        Ok(self.write_u32::<LittleEndian>(val)?)
+    }
+
+    fn write_ptp_i32(&mut self, val: i32) -> Result<(), Error> {
+        Ok(self.write_i32::<LittleEndian>(val)?)
+    }
+
+    fn write_ptp_u64(&mut self, val: u64) -> Result<(), Error> {
+        Ok(self.write_u64::<LittleEndian>(val)?)
+    }
+
+    fn write_ptp_i64(&mut self, val: i64) -> Result<(), Error> {
+        Ok(self.write_i64::<LittleEndian>(val)?)
+    }
+
+    fn write_ptp_u128(&mut self, val: (u64, u64)) -> Result<(), Error> {
+        let (lo, hi) = val;
+        self.write_u64::<LittleEndian>(lo)?;
+        Ok(self.write_u64::<LittleEndian>(hi)?)
+    }
+
+    fn write_ptp_i128(&mut self, val: (u64, u64)) -> Result<(), Error> {
+        let (lo, hi) = val;
+        self.write_u64::<LittleEndian>(lo)?;
+        Ok(self.write_u64::<LittleEndian>(hi)?)
+    }
+
+    fn write_ptp_vec<T, F>(&mut self, items: &[T], write_fn: F) -> Result<(), Error>
+    where
+        F: Fn(&mut Self, &T) -> Result<(), Error>,
+    {
+        self.write_u32::<LittleEndian>(items.len() as u32)?;
+        for item in items {
+            write_fn(self, item)?;
+        }
+        Ok(())
+    }
+
+    fn write_ptp_str(&mut self, val: &str) -> Result<(), Error> {
+        let utf16: Vec<u16> = val.encode_utf16().collect();
+        self.write_u8((utf16.len() as u8) * 2 + 1)?;
+        if !utf16.is_empty() {
+            for c in utf16 {
+                self.write_u16::<LittleEndian>(c)?;
+            }
+            self.write_all(&[0, 0])?;
+        }
+        Ok(())
+    }
+}
+
+impl<W: WriteBytesExt> PtpWrite for W {}
+
 #[derive(Debug, Eq, PartialEq, PartialOrd, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize))]
 pub enum Data {
@@ -427,7 +498,6 @@ impl LowerHex for Data {
         }
     }
 }
-
 
 impl UpperHex for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
