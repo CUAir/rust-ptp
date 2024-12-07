@@ -301,7 +301,7 @@ impl ContainerInfo {
     }
 }
 
-pub struct Camera<C: rusb::UsbContext> {
+pub struct Device<C: rusb::UsbContext> {
     iface: u8,
     ep_in: u8,
     ep_out: u8,
@@ -310,8 +310,8 @@ pub struct Camera<C: rusb::UsbContext> {
     handle: Arc<rusb::DeviceHandle<C>>,
 }
 
-impl<C: rusb::UsbContext> Camera<C> {
-    pub fn new(handle: Arc<rusb::DeviceHandle<C>>) -> Result<Camera<C>, Error> {
+impl<C: rusb::UsbContext> Device<C> {
+    pub fn new(handle: Arc<rusb::DeviceHandle<C>>) -> Result<Device<C>, Error> {
         let config_desc = handle.device().active_config_descriptor()?;
 
         let interface_desc = config_desc
@@ -336,7 +336,7 @@ impl<C: rusb::UsbContext> Camera<C> {
                 .ok_or(rusb::Error::NotFound)
         };
 
-        Ok(Camera {
+        Ok(Device {
             iface: interface_desc.interface_number(),
             ep_in: find_endpoint(rusb::Direction::In, rusb::TransferType::Bulk)?,
             ep_out: find_endpoint(rusb::Direction::Out, rusb::TransferType::Bulk)?,
